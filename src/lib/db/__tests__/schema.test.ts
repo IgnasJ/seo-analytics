@@ -1,9 +1,5 @@
-import { describe, it, expect, beforeEach } from "bun:test"
-// Tests run via `bun test`, which executes in the Bun runtime where
-// `bun:sqlite` is available. Production code uses ../driver (better-sqlite3)
-// because Next.js runs under Node-compat. Both back the same SQLite engine,
-// so schema semantics tested here are equivalent.
-import { Database } from "bun:sqlite"
+import { describe, it, expect, beforeEach } from "vitest"
+import { Database } from "../driver"
 import { SCHEMA_SQL } from "../schema"
 
 describe("database schema", () => {
@@ -17,15 +13,28 @@ describe("database schema", () => {
 
   it("creates all required tables", () => {
     const tables = db
-      .query<{ name: string }, []>("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+      .query<{ name: string }, []>(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+      )
       .all()
     const names = tables.map((t) => t.name)
+    expect(names).toContain("categories")
     expect(names).toContain("domains")
     expect(names).toContain("oauth_tokens")
     expect(names).toContain("sync_log")
     expect(names).toContain("analytics_cache")
     expect(names).toContain("gsc_cache")
     expect(names).toContain("issues_cache")
+  })
+
+  it("domains.category_id defaults to Uncategorized (1) when omitted", () => {
+    db.run("INSERT INTO domains (hostname) VALUES ('default-cat.com')")
+    const row = db
+      .query<{ category_id: number }, []>(
+        "SELECT category_id FROM domains WHERE hostname = 'default-cat.com'"
+      )
+      .get()!
+    expect(row.category_id).toBe(1)
   })
 
   it("enforces unique hostname in domains", () => {
@@ -40,7 +49,11 @@ describe("database schema", () => {
     const { id } = db.query<{ id: number }, []>("SELECT id FROM domains").get()!
     db.run("INSERT INTO sync_log (domain_id) VALUES (?)", [id])
     db.run("DELETE FROM domains WHERE id = ?", [id])
-    const logs = db.query<{ id: number }, [number]>("SELECT * FROM sync_log WHERE domain_id = ?").all(id)
+    const logs = db
+      .query<{ id: number }, [number]>(
+        "SELECT * FROM sync_log WHERE domain_id = ?"
+      )
+      .all(id)
     expect(logs).toHaveLength(0)
   })
 })

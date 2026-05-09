@@ -1,10 +1,12 @@
 import type { Database } from "../driver"
+import { UNCATEGORIZED_ID } from "./categories"
 
 export interface Domain {
   id: number
   hostname: string
   ga4_property_id: string | null
   gsc_site_url: string | null
+  category_id: number
   created_at: number
 }
 
@@ -16,9 +18,24 @@ export function getDomain(db: Database, id: number): Domain | null {
   return db.query<Domain, [number]>("SELECT * FROM domains WHERE id = ?").get(id)
 }
 
-export function addDomain(db: Database, hostname: string): Domain {
-  db.run("INSERT INTO domains (hostname) VALUES (?)", [hostname])
+export function addDomain(
+  db: Database,
+  hostname: string,
+  categoryId: number = UNCATEGORIZED_ID
+): Domain {
+  db.run("INSERT INTO domains (hostname, category_id) VALUES (?, ?)", [
+    hostname,
+    categoryId,
+  ])
   return db.query<Domain, [string]>("SELECT * FROM domains WHERE hostname = ?").get(hostname)!
+}
+
+export function updateDomainCategory(
+  db: Database,
+  id: number,
+  categoryId: number
+): void {
+  db.run("UPDATE domains SET category_id = ? WHERE id = ?", [categoryId, id])
 }
 
 export function updateDomainProperties(

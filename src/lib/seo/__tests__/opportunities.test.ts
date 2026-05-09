@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test"
+import { describe, it, expect } from "vitest"
 import { computeOpportunities } from "../opportunities"
 import type { QueryRow } from "@/types/search-console"
 

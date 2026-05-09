@@ -1,6 +1,6 @@
-import { describe, it, expect, mock } from "bun:test"
+import { describe, it, expect, vi } from "vitest"
 
-const mockRunReport = mock(async (_opts: unknown) => ({
+const mockRunReport = vi.fn(async (_opts: unknown) => ({
   data: {
     rows: [
       {
@@ -29,7 +29,7 @@ const mockRunReport = mock(async (_opts: unknown) => ({
   },
 }))
 
-mock.module("googleapis", () => ({
+vi.mock("googleapis", () => ({
   google: {
     analyticsdata: (_opts: unknown) => ({
       properties: {
@@ -47,7 +47,12 @@ mock.module("googleapis", () => ({
 describe("fetchGA4Report", () => {
   it("returns structured analytics report", async () => {
     const { fetchGA4Report } = await import("../analytics")
-    const result = await fetchGA4Report("properties/123", "fake-access-token", "2025-01-01", "2025-01-31")
+    const result = await fetchGA4Report(
+      "properties/123",
+      "fake-access-token",
+      "2025-01-01",
+      "2025-01-31"
+    )
     expect(result.overview.sessions).toBe(120)
     expect(result.overview.users).toBe(100)
     expect(result.overview.pageviews).toBe(200)
