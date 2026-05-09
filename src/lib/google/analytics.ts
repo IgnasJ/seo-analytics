@@ -41,7 +41,7 @@ export async function fetchGA4Report(
         dimensions: [{ name: "pagePath" }],
         metrics: [{ name: "sessions" }, { name: "screenPageViews" }],
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-        limit: 20,
+        limit: "20",
       },
     }),
     analyticsdata.properties.runReport({
