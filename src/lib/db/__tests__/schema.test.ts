@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach } from "bun:test"
+// Tests run via `bun test`, which executes in the Bun runtime where
+// `bun:sqlite` is available. Production code uses ../driver (better-sqlite3)
+// because Next.js runs under Node-compat. Both back the same SQLite engine,
+// so schema semantics tested here are equivalent.
 import { Database } from "bun:sqlite"
 import { SCHEMA_SQL } from "../schema"
 

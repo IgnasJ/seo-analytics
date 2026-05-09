@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite"
+import { Database } from "./driver"
 import { SCHEMA_SQL } from "./schema"
 
 let db: Database | null = null

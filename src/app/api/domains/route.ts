@@ -18,7 +18,13 @@ export async function POST(req: NextRequest) {
     const db = getDb()
     const domain = addDomain(db, clean)
     return NextResponse.json(domain, { status: 201 })
-  } catch {
-    return NextResponse.json({ error: "Domain already exists" }, { status: 409 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    // SQLite throws on UNIQUE constraint with a recognizable message.
+    if (/UNIQUE constraint/i.test(message)) {
+      return NextResponse.json({ error: "Domain already exists" }, { status: 409 })
+    }
+    console.error("POST /api/domains failed:", err)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

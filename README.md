@@ -81,12 +81,17 @@ Open `http://localhost:3000`
 
 ## Development
 
+The app runs under **Node 20+** with **pnpm** as the package manager.
+
 ```bash
-bun install
-bun run dev
+pnpm install
+pnpm dev
 ```
 
-Run tests:
+Run tests (uses `bun test` because the suites use `bun:sqlite` for an
+in-memory database — install Bun separately if you want to run tests
+locally):
+
 ```bash
 bun test
 ```
@@ -104,9 +109,9 @@ bun test
 
 ## Tech Stack
 
-- **Runtime:** Bun
-- **Framework:** Next.js 15 (App Router)
-- **Database:** SQLite via bun:sqlite (built-in)
+- **Runtime:** Node 20 (managed via pnpm)
+- **Framework:** Next.js 16 (App Router, Turbopack)
+- **Database:** SQLite via better-sqlite3 (production); bun:sqlite (tests)
 - **UI:** shadcn/ui + Tailwind CSS + Recharts
 - **APIs:** Google Analytics Data API, Google Search Console API, Chrome UX Report API
 - **Auth:** Google OAuth 2.0 with encrypted refresh token storage

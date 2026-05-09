@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [domains, setDomains] = useState<Domain[]>([])
   const [newHostname, setNewHostname] = useState("")
   const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
   const [discovering, setDiscovering] = useState<number | null>(null)
   const [discoveryResult, setDiscoveryResult] = useState<{ domainId: number; result: DiscoveryResult } | null>(null)
 
@@ -37,14 +38,25 @@ export default function SettingsPage() {
   async function addDomain() {
     if (!newHostname.trim()) return
     setAdding(true)
-    await fetch("/api/domains", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hostname: newHostname.trim() }),
-    })
-    setNewHostname("")
-    setAdding(false)
-    loadDomains()
+    setAddError(null)
+    try {
+      const res = await fetch("/api/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostname: newHostname.trim() }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setAddError(body.error ?? `Request failed (${res.status})`)
+        return
+      }
+      setNewHostname("")
+      loadDomains()
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : "Network error")
+    } finally {
+      setAdding(false)
+    }
   }
 
   async function deleteDomain(id: number) {
@@ -110,6 +122,9 @@ export default function SettingsPage() {
               Add
             </Button>
           </div>
+          {addError && (
+            <p className="text-xs text-destructive">{addError}</p>
+          )}
 
           <div className="space-y-2">
             {domains.map((domain) => (
