@@ -48,3 +48,6 @@ next-env.d.ts
 # app data
 data/
 !src/app/api/data/
+
+# Claude Code local config
+.claude/
