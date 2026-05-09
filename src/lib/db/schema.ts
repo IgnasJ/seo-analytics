@@ -60,4 +60,16 @@ export const SCHEMA_SQL = `
     synced_at INTEGER NOT NULL DEFAULT (unixepoch()),
     UNIQUE(domain_id)
   );
+
+  CREATE TABLE IF NOT EXISTS audits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    requested_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    completed_at INTEGER,
+    result_json TEXT,
+    error_message TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_audits_url ON audits(url, requested_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_audits_status ON audits(status, requested_at DESC);
 `

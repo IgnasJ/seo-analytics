@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Trash2, Pencil, Check, X } from "lucide-react"
+import { Plus, Trash2, Pencil, Check, X, ArrowUp, ArrowDown } from "lucide-react"
 
 interface Domain {
   id: number
@@ -111,6 +111,29 @@ export default function DomainsPage() {
     }
     setEditingCategoryId(null)
     setEditingCategoryName("")
+    loadAll()
+  }
+
+  async function moveCategory(id: number, direction: -1 | 1) {
+    // Operate only on non-system categories. Swap sort_order with the neighbour
+    // in the requested direction; rely on the server PATCH to persist both.
+    const userOrdered = categories.filter((c) => !c.is_system)
+    const idx = userOrdered.findIndex((c) => c.id === id)
+    if (idx < 0) return
+    const targetIdx = idx + direction
+    if (targetIdx < 0 || targetIdx >= userOrdered.length) return
+
+    const a = userOrdered[idx]
+    const b = userOrdered[targetIdx]
+    const reorder = [
+      { id: a.id, sort_order: b.sort_order },
+      { id: b.id, sort_order: a.sort_order },
+    ]
+    await fetch(`/api/categories/${a.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reorder }),
+    })
     loadAll()
   }
 
@@ -245,28 +268,53 @@ export default function DomainsPage() {
                       <span>
                         {domains.filter((d) => d.category_id === c.id).length} domain(s)
                       </span>
-                      {!c.is_system && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingCategoryId(c.id)
-                              setEditingCategoryName(c.name)
-                            }}
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => deleteCategoryRow(c)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </>
-                      )}
+                      {!c.is_system &&
+                        (() => {
+                          const userCats = categories.filter((x) => !x.is_system)
+                          const ix = userCats.findIndex((x) => x.id === c.id)
+                          const canUp = ix > 0
+                          const canDown = ix >= 0 && ix < userCats.length - 1
+                          return (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={!canUp}
+                                onClick={() => moveCategory(c.id, -1)}
+                                aria-label="Move up"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={!canDown}
+                                onClick={() => moveCategory(c.id, 1)}
+                                aria-label="Move down"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingCategoryId(c.id)
+                                  setEditingCategoryName(c.name)
+                                }}
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => deleteCategoryRow(c)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )
+                        })()}
                     </div>
                   </>
                 )}
