@@ -296,11 +296,11 @@ function StatusBadge({ status }: { status: Audit["status"] }) {
 }
 
 function ScorePills({ result }: { result: AuditResult }) {
-  const items: { label: string; value: number }[] = [
-    { label: "P", value: result.scores.performance },
-    { label: "A", value: result.scores.accessibility },
-    { label: "BP", value: result.scores.bestPractices },
-    { label: "S", value: result.scores.seo },
+  const items: { label: string; full: string; value: number }[] = [
+    { label: "P", full: "Performance", value: result.scores.performance },
+    { label: "A", full: "Accessibility", value: result.scores.accessibility },
+    { label: "BP", full: "Best Practices", value: result.scores.bestPractices },
+    { label: "S", full: "SEO", value: result.scores.seo },
   ]
   return (
     <div className="flex gap-1">
@@ -314,8 +314,8 @@ function ScorePills({ result }: { result: AuditResult }) {
         return (
           <span
             key={it.label}
-            className={`text-xs border rounded-md px-1.5 py-0.5 font-medium ${colour}`}
-            title={`${it.label}: ${it.value}`}
+            className={`text-xs border rounded-md px-1.5 py-0.5 font-medium cursor-help ${colour}`}
+            title={`${it.full}: ${it.value} / 100`}
           >
             {it.label} {it.value}
           </span>

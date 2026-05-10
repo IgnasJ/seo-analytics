@@ -172,12 +172,55 @@ function LabCwvStrip({ current, prior }: Props) {
     const better = lowerIsBetter ? d < 0 : d > 0
     return { d, better }
   }
-  const items: { label: string; current: string; raw: number | null; prior: number | null; cls?: boolean }[] = [
-    { label: "LCP", current: fmtMs(current.labCwv.lcp), raw: current.labCwv.lcp, prior: prior?.labCwv.lcp ?? null },
-    { label: "CLS", current: fmtCls(current.labCwv.cls), raw: current.labCwv.cls, prior: prior?.labCwv.cls ?? null, cls: true },
-    { label: "TBT", current: fmtMs(current.labCwv.tbt), raw: current.labCwv.tbt, prior: prior?.labCwv.tbt ?? null },
-    { label: "FCP", current: fmtMs(current.labCwv.fcp), raw: current.labCwv.fcp, prior: prior?.labCwv.fcp ?? null },
-    { label: "SI", current: fmtMs(current.labCwv.si), raw: current.labCwv.si, prior: prior?.labCwv.si ?? null },
+  const items: {
+    label: string
+    tooltip: string
+    current: string
+    raw: number | null
+    prior: number | null
+    cls?: boolean
+  }[] = [
+    {
+      label: "LCP",
+      tooltip:
+        "Largest Contentful Paint — time until the largest visible element renders. Target <2.5 s. Hero images, slow servers, render-blocking JS or CSS are the usual culprits.",
+      current: fmtMs(current.labCwv.lcp),
+      raw: current.labCwv.lcp,
+      prior: prior?.labCwv.lcp ?? null,
+    },
+    {
+      label: "CLS",
+      tooltip:
+        "Cumulative Layout Shift — how much the page jumps around as it loads (unitless score). Target <0.1. Caused by missing image dimensions, late-injected content, or font swaps.",
+      current: fmtCls(current.labCwv.cls),
+      raw: current.labCwv.cls,
+      prior: prior?.labCwv.cls ?? null,
+      cls: true,
+    },
+    {
+      label: "TBT",
+      tooltip:
+        "Total Blocking Time — total ms the main thread was busy enough to block input. Target <200 ms. Lab equivalent of INP. Heavy third-party scripts and large JS bundles drive this.",
+      current: fmtMs(current.labCwv.tbt),
+      raw: current.labCwv.tbt,
+      prior: prior?.labCwv.tbt ?? null,
+    },
+    {
+      label: "FCP",
+      tooltip:
+        "First Contentful Paint — time to render the first piece of text or image. Target <1.8 s. Server response time and render-blocking CSS dominate this metric.",
+      current: fmtMs(current.labCwv.fcp),
+      raw: current.labCwv.fcp,
+      prior: prior?.labCwv.fcp ?? null,
+    },
+    {
+      label: "SI",
+      tooltip:
+        "Speed Index — how quickly content visually populates above the fold (calculated from a video timeline of the load). Target <3.4 s.",
+      current: fmtMs(current.labCwv.si),
+      raw: current.labCwv.si,
+      prior: prior?.labCwv.si ?? null,
+    },
   ]
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs border rounded-md p-3">
@@ -185,7 +228,12 @@ function LabCwvStrip({ current, prior }: Props) {
         const d = delta(it.raw, it.prior, true) // lab metrics: lower is better
         return (
           <div key={it.label} className="flex flex-col">
-            <span className="text-muted-foreground">{it.label}</span>
+            <span
+              title={it.tooltip}
+              className="text-muted-foreground cursor-help"
+            >
+              {it.label}
+            </span>
             <span className="font-medium">{it.current}</span>
             {d && (
               <span className={d.better ? "text-green-600" : "text-red-600"}>
