@@ -26,14 +26,23 @@ export function CountryChart({ data }: { data: CountryRow[] }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={Math.max(160, display.length * 22)}>
-      <BarChart data={display} layout="vertical">
+    <ResponsiveContainer width="100%" height={Math.max(180, display.length * 28)}>
+      <BarChart
+        data={display}
+        layout="vertical"
+        margin={{ top: 4, right: 8, bottom: 4, left: 0 }}
+      >
         <XAxis type="number" tick={{ fontSize: 11 }} />
         <YAxis
           dataKey="country"
           type="category"
           tick={{ fontSize: 11 }}
-          width={100}
+          width={110}
+          // interval={0} forces every label to render. The default "auto"
+          // skips alternate labels whenever recharts *thinks* they would
+          // overlap, even when there's actually room — which is what was
+          // hiding every other country.
+          interval={0}
         />
         <Tooltip />
         <Bar
