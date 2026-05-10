@@ -22,6 +22,7 @@ import {
   weightedAvgPosition,
 } from "@/lib/seo/aggregates"
 import { Hint } from "@/components/ui/hint"
+import { DashboardFilters } from "@/components/dashboard/filters"
 import Link from "next/link"
 import type { AnalyticsReport } from "@/types/analytics"
 import type { GscReport, IssuesReport } from "@/types/search-console"
@@ -52,12 +53,22 @@ interface DashboardCard {
   severity: Severity
 }
 
-export default function DashboardPage() {
+interface PageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const sp = await searchParams
+  const rawCategory = Array.isArray(sp.category) ? sp.category[0] : sp.category
+  const selectedCategoryId =
+    rawCategory && /^\d+$/.test(rawCategory) ? Number(rawCategory) : null
+  const issuesOnly = sp.issues === "1"
+
   const db = getDb()
   const domains = listDomains(db)
   const categories = listCategories(db)
 
-  const cards: DashboardCard[] = domains.map((domain) => {
+  const allCards: DashboardCard[] = domains.map((domain) => {
     const analytics1m = getAnalyticsCache(db, domain.id, "1m") as AnalyticsReport | null
     const gsc1m = getGscCache(db, domain.id, "1m") as GscReport | null
     const gsc7d = getGscCache(db, domain.id, "7d") as GscReport | null
@@ -104,26 +115,52 @@ export default function DashboardPage() {
     }
   })
 
-  // Group cards by category, preserving the categories' sort order. Empty
-  // categories are filtered out.
+  // Apply filters from URL search params. Both filters compose: e.g.
+  // ?category=2&issues=1 = "show only domains in category 2 that have at
+  // least one issue."
+  const filteredCards = allCards.filter((c) => {
+    if (selectedCategoryId !== null && c.category_id !== selectedCategoryId) {
+      return false
+    }
+    if (issuesOnly && c.severity === "green") return false
+    return true
+  })
+
+  // Per-category counts include only the issues-only filter, so flipping
+  // categories via chips doesn't show 0s for visible options.
+  const issuesScopedCards = issuesOnly
+    ? allCards.filter((c) => c.severity !== "green")
+    : allCards
+  const categoryOptions = categories
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      count: issuesScopedCards.filter((card) => card.category_id === c.id).length,
+    }))
+    // Hide categories with zero matches so the chip row stays compact.
+    .filter((c) => c.count > 0)
+
+  // Group filtered cards by category, preserving sort order. Empty
+  // categories drop out of the rendered view.
   const grouped = categories
     .map((category) => ({
       category,
-      cards: cards.filter((c) => c.category_id === category.id),
+      cards: filteredCards.filter((c) => c.category_id === category.id),
     }))
     .filter((g) => g.cards.length > 0)
 
-  // KPI aggregates — fed into the (hidden by default) KpiStrip.
-  const counts = healthCounts(cards.map((c) => c.severity))
+  // KPI aggregates use the FILTERED card set so the strip reflects exactly
+  // what the user is currently looking at.
+  const counts = healthCounts(filteredCards.map((c) => c.severity))
   const kpi: KpiData = {
-    totalSessions: cards.reduce((s, c) => s + (c.sessions ?? 0), 0),
-    totalSessionsPrior: cards.reduce((s, c) => s + c.sessions7d, 0),
-    dailySessions: sumDaily(cards.map((c) => c.dailySessions)),
-    totalClicks: cards.reduce((s, c) => s + (c.clicks ?? 0), 0),
-    totalClicksPrior: cards.reduce((s, c) => s + c.clicks7d, 0),
-    dailyClicks: sumDaily(cards.map((c) => c.dailyClicks)),
+    totalSessions: filteredCards.reduce((s, c) => s + (c.sessions ?? 0), 0),
+    totalSessionsPrior: filteredCards.reduce((s, c) => s + c.sessions7d, 0),
+    dailySessions: sumDaily(filteredCards.map((c) => c.dailySessions)),
+    totalClicks: filteredCards.reduce((s, c) => s + (c.clicks ?? 0), 0),
+    totalClicksPrior: filteredCards.reduce((s, c) => s + c.clicks7d, 0),
+    dailyClicks: sumDaily(filteredCards.map((c) => c.dailyClicks)),
     avgPosition: weightedAvgPosition(
-      cards
+      filteredCards
         .filter((c) => c.position1m !== null)
         .map((c) => ({
           position: c.position1m!,
@@ -133,7 +170,7 @@ export default function DashboardPage() {
         }))
     ),
     avgPositionPrior: weightedAvgPosition(
-      cards
+      filteredCards
         .filter((c) => c.position7d !== null)
         .map((c) => ({
           position: c.position7d!,
@@ -150,7 +187,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 gap-2 flex-wrap">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <h1 className="text-xl font-semibold">Dashboard</h1>
         <div className="flex items-center gap-2">
           <ViewToggle />
@@ -162,14 +199,28 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {cards.length > 0 && <KpiStrip data={kpi} />}
+      {allCards.length > 0 && (
+        <DashboardFilters
+          categories={categoryOptions}
+          selectedCategoryId={selectedCategoryId}
+          issuesOnly={issuesOnly}
+          filteredCount={filteredCards.length}
+          totalCount={allCards.length}
+        />
+      )}
 
-      {cards.length === 0 ? (
+      {filteredCards.length > 0 && <KpiStrip data={kpi} />}
+
+      {allCards.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <p className="mb-3">No domains yet.</p>
           <Link href="/domains">
             <Button size="sm">Add your first domain</Button>
           </Link>
+        </div>
+      ) : filteredCards.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">
+          No domains match the current filters.
         </div>
       ) : (
         <div className="space-y-8">
