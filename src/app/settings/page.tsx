@@ -10,6 +10,7 @@ import { getApiUsageStats } from "@/lib/db/queries/api-usage"
 import { SyncAllButton } from "@/components/sync-all-button"
 import { SyncHistoryDisclosure } from "@/components/sync-history-disclosure"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { formatInteger } from "@/lib/format"
 
 export const dynamic = "force-dynamic"
 
@@ -152,10 +153,10 @@ export default function SettingsPage() {
                       </a>
                     </td>
                     <td className="py-2 text-right tabular-nums">
-                      {row.today.toLocaleString()}
+                      {formatInteger(row.today)}
                     </td>
                     <td className="py-2 text-right tabular-nums">
-                      {row.month.toLocaleString()}
+                      {formatInteger(row.month)}
                     </td>
                     <td className="py-2 text-right text-xs text-muted-foreground">
                       {row.freeLimit}

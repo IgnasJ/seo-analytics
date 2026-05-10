@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import type { PageRow } from "@/types/analytics"
 import { PageNav } from "@/components/ui/page-nav"
 import { Button } from "@/components/ui/button"
+import { formatInteger } from "@/lib/format"
 import {
   ArrowDown,
   ArrowUp,
@@ -114,10 +115,10 @@ export function TopPagesTable({ data }: { data: PageRow[] }) {
                   {row.pagePath}
                 </td>
                 <td className="py-2 text-right">
-                  {row.sessions.toLocaleString()}
+                  {formatInteger(row.sessions)}
                 </td>
                 <td className="py-2 text-right">
-                  {row.pageviews.toLocaleString()}
+                  {formatInteger(row.pageviews)}
                 </td>
               </tr>
             ))}

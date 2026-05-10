@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight, TrendingUp, Lightbulb, Info } from "lucide-r
 import type { OpportunityRow } from "@/lib/seo/opportunities"
 import { recommendationFor } from "@/lib/seo/recommendations"
 import { Hint } from "@/components/ui/hint"
+import { formatInteger } from "@/lib/format"
 
 export function OpportunitiesTab({ data }: { data: OpportunityRow[] }) {
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -301,7 +302,7 @@ function Row({
             {row.position.toFixed(1)}
           </span>
         </td>
-        <td className="py-2 text-right">{row.impressions.toLocaleString()}</td>
+        <td className="py-2 text-right">{formatInteger(row.impressions)}</td>
         <td className="py-2 text-right">{(row.ctr * 100).toFixed(1)}%</td>
         <td className="py-2 text-right font-medium">{row.opportunityScore}</td>
       </tr>
@@ -333,7 +334,7 @@ function Row({
                   </p>
                   <p className="text-2xl font-semibold">
                     {rec.potentialClicks > 0
-                      ? `+${rec.potentialClicks.toLocaleString()}`
+                      ? `+${formatInteger(rec.potentialClicks)}`
                       : "—"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">

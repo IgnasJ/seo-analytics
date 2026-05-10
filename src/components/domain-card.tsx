@@ -5,6 +5,7 @@ import { StatusDot } from "@/components/dashboard/status-dot"
 import { SyncIcon } from "@/components/dashboard/sync-icon"
 import { Hint } from "@/components/ui/hint"
 import { cardHealth, type Severity } from "@/lib/seo/health"
+import { formatCompact } from "@/lib/format"
 
 export interface DomainCardProps {
   id: number
@@ -32,11 +33,9 @@ const BORDER_COLOR: Record<Severity, string> = {
   red: "border-l-red-500",
 }
 
-function formatNumber(n: number | null): string {
-  if (n === null) return "—"
-  if (n >= 10000) return `${(n / 1000).toFixed(1)}K`
-  return n.toLocaleString()
-}
+// Re-exported alias of formatCompact for callers below — keeps the JSX
+// readable. Locale-stable across server and client.
+const formatNumber = formatCompact
 
 export function DomainCard(props: DomainCardProps) {
   const {

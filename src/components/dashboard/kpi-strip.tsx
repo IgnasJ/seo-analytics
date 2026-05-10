@@ -4,6 +4,7 @@ import { Sparkline } from "./sparkline"
 import { TrendChip } from "./trend-chip"
 import { TrendingUp } from "lucide-react"
 import { Hint } from "@/components/ui/hint"
+import { formatCompact } from "@/lib/format"
 
 export interface KpiData {
   totalSessions: number
@@ -21,11 +22,10 @@ export interface KpiData {
   red: number
 }
 
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 10_000) return `${(n / 1000).toFixed(1)}K`
-  return n.toLocaleString()
-}
+// Locale-stable across SSR and client. Server (Node) and browser locales
+// often disagree on thousand separators, so always use the explicit
+// "en-US"-grouped formatter exported from lib/format.
+const formatNumber = (n: number) => formatCompact(n)
 
 /**
  * Aggregate KPI strip rendered above the dashboard grid when the view toggle

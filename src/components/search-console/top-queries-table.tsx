@@ -7,6 +7,7 @@ import {
   FilterBar,
   SortHeader,
 } from "@/components/analytics/top-pages-table"
+import { formatInteger } from "@/lib/format"
 
 const PAGE_SIZE = 15
 
@@ -121,7 +122,7 @@ export function TopQueriesTable({ data }: { data: QueryRow[] }) {
                 <td className="py-2 truncate max-w-[200px]">{row.query}</td>
                 <td className="py-2 text-right">{row.clicks}</td>
                 <td className="py-2 text-right">
-                  {row.impressions.toLocaleString()}
+                  {formatInteger(row.impressions)}
                 </td>
                 <td className="py-2 text-right">
                   {(row.ctr * 100).toFixed(1)}%

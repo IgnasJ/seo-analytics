@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import Script from "next/script"
 import "./globals.css"
 import { Sidebar } from "@/components/layout/sidebar"
 import { StartupSync } from "@/components/startup-sync"
@@ -13,11 +14,14 @@ export const metadata: Metadata = {
 }
 
 /**
- * Inline script that reads the saved theme preference and applies it to
- * <html> *before* React hydrates. Without this, the page paints in the
- * default light theme for a frame or two before the ThemeToggle's effect
- * fires — a visible flash. Mirrors the same logic in
- * src/components/theme-toggle.tsx so both stay in sync.
+ * Reads the saved theme preference and applies it to <html> *before*
+ * React hydrates. Without this, the page paints in the default light
+ * theme for a frame or two before the ThemeToggle's effect fires — a
+ * visible flash. Loaded via next/script with strategy="beforeInteractive"
+ * so React's "scripts in JSX don't execute on client nav" warning
+ * doesn't fire and the script reliably runs before hydration.
+ *
+ * Mirrors the logic in src/components/theme-toggle.tsx — keep in sync.
  */
 const themeBootstrap = `
 (function () {
@@ -33,10 +37,10 @@ const themeBootstrap = `
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
-      </head>
       <body className={inter.className}>
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {themeBootstrap}
+        </Script>
         <TooltipProvider delay={0}>
           <StartupSync />
           <div className="flex flex-col md:flex-row min-h-screen">
