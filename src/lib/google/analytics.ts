@@ -12,11 +12,20 @@ export async function fetchGA4Report(
   auth.setCredentials({ access_token: accessToken })
   const analyticsdata = google.analyticsdata({ version: "v1beta", auth })
 
-  const [overviewRes, channelsRes, pagesRes, dailyRes] = await Promise.all([
+  // Three concurrent reports:
+  //   1. Daily breakdown over (date) with all 5 metrics + TOTAL aggregation —
+  //      the TOTAL row replaces the previous separate dimension-less overview
+  //      query, which GA4 was returning with empty metricValues for some
+  //      property configurations. Adding the date dimension forces real rows
+  //      to exist, so the TOTAL aggregation always populates.
+  //   2. Channel breakdown.
+  //   3. Top pages breakdown.
+  const [dailyRes, channelsRes, pagesRes] = await Promise.all([
     analyticsdata.properties.runReport({
       property: propertyId,
       requestBody: {
         dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "date" }],
         metrics: [
           { name: "sessions" },
           { name: "totalUsers" },
@@ -24,11 +33,7 @@ export async function fetchGA4Report(
           { name: "bounceRate" },
           { name: "averageSessionDuration" },
         ],
-        // Explicitly request the TOTAL aggregation. Without this, GA4 will
-        // not populate `totals` in the response, AND the response body for a
-        // no-dimensions query may also have rows[0] missing on some property
-        // configurations. Asking for the total guarantees the metric values
-        // arrive in `data.totals[0]`.
+        orderBys: [{ dimension: { dimensionName: "date" } }],
         metricAggregations: ["TOTAL"],
       },
     }),
@@ -54,50 +59,24 @@ export async function fetchGA4Report(
         limit: "200",
       },
     }),
-    analyticsdata.properties.runReport({
-      property: propertyId,
-      requestBody: {
-        dateRanges: [{ startDate, endDate }],
-        dimensions: [{ name: "date" }],
-        metrics: [{ name: "sessions" }, { name: "totalUsers" }],
-        orderBys: [{ dimension: { dimensionName: "date" } }],
-      },
-    }),
   ])
 
-  // Four GA4 reports run concurrently above. Count them as four calls.
-  recordApiCall("ga4")
   recordApiCall("ga4")
   recordApiCall("ga4")
   recordApiCall("ga4")
 
-  // With `metricAggregations: ["TOTAL"]` (set in the request above), GA4
-  // populates `data.totals[0].metricValues` reliably. Fall back to rows[0]
-  // for forward compatibility / the existing test fixture shape.
-  const overviewMetrics =
-    overviewRes.data.totals?.[0]?.metricValues ??
-    overviewRes.data.rows?.[0]?.metricValues ??
-    []
-
-  if (overviewMetrics.length === 0) {
-    console.warn(
-      "[GA4] overview metrics empty for property",
-      propertyId,
-      "— response keys:",
-      Object.keys(overviewRes.data ?? {}),
-      "rows:",
-      overviewRes.data.rows?.length,
-      "totals:",
-      overviewRes.data.totals?.length
-    )
-  }
+  // Overview metrics come from the TOTAL row of the daily query. Because the
+  // request specifies a date dimension, GA4 always populates totals[0] when
+  // there's any data in the range; we don't need the rows[0] fallback the
+  // dimensionless overview required.
+  const totalMetrics = dailyRes.data.totals?.[0]?.metricValues ?? []
 
   const overview = {
-    sessions: Number(overviewMetrics[0]?.value ?? 0),
-    users: Number(overviewMetrics[1]?.value ?? 0),
-    pageviews: Number(overviewMetrics[2]?.value ?? 0),
-    bounceRate: Number(overviewMetrics[3]?.value ?? 0),
-    avgSessionDuration: Number(overviewMetrics[4]?.value ?? 0),
+    sessions: Number(totalMetrics[0]?.value ?? 0),
+    users: Number(totalMetrics[1]?.value ?? 0),
+    pageviews: Number(totalMetrics[2]?.value ?? 0),
+    bounceRate: Number(totalMetrics[3]?.value ?? 0),
+    avgSessionDuration: Number(totalMetrics[4]?.value ?? 0),
   }
 
   const channels: ChannelRow[] = (channelsRes.data.rows ?? []).map((r) => ({
@@ -111,6 +90,8 @@ export async function fetchGA4Report(
     pageviews: Number(r.metricValues?.[1]?.value ?? 0),
   }))
 
+  // Daily rows come from the same query — the chart only needs sessions and
+  // users, so we drop the trailing 3 metrics here.
   const daily: DailyRow[] = (dailyRes.data.rows ?? []).map((r) => ({
     date: r.dimensionValues?.[0]?.value ?? "",
     sessions: Number(r.metricValues?.[0]?.value ?? 0),

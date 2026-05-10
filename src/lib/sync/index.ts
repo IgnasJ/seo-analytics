@@ -40,11 +40,17 @@ export async function syncDomain(domainId: number): Promise<void> {
   const tokenRow = getToken(db)
   if (!tokenRow) throw new Error("No OAuth token — connect Google account first")
 
-  try {
-    const accessToken = await getValidAccessToken(tokenRow.refresh_token_encrypted)
+  // We split the sync into independent stages and catch each one so a single
+  // permission error (e.g. GSC 403 because the user isn't a Search Console
+  // verified owner of the property) doesn't drop the GA4 data we successfully
+  // pulled. Failures are logged with context and the sync_log row is marked
+  // 'error' if anything failed at all, otherwise 'success'.
+  const accessToken = await getValidAccessToken(tokenRow.refresh_token_encrypted)
+  const failures: string[] = []
 
-    if (domain.ga4_property_id) {
-      for (const range of DATE_RANGES) {
+  if (domain.ga4_property_id) {
+    for (const range of DATE_RANGES) {
+      try {
         const data = await fetchGA4Report(
           domain.ga4_property_id,
           accessToken,
@@ -52,11 +58,17 @@ export async function syncDomain(domainId: number): Promise<void> {
           range.endDate()
         )
         setAnalyticsCache(db, domainId, range.key, data)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error(`[GA4] ${domain.hostname} ${range.key}:`, msg)
+        failures.push(`GA4 ${range.key}`)
       }
     }
+  }
 
-    if (domain.gsc_site_url) {
-      for (const range of DATE_RANGES) {
+  if (domain.gsc_site_url) {
+    for (const range of DATE_RANGES) {
+      try {
         const data = await fetchGSCReport(
           domain.gsc_site_url,
           accessToken,
@@ -64,8 +76,14 @@ export async function syncDomain(domainId: number): Promise<void> {
           range.endDate()
         )
         setGscCache(db, domainId, range.key, data)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error(`[GSC] ${domain.hostname} ${range.key}:`, msg)
+        failures.push(`GSC ${range.key}`)
       }
+    }
 
+    try {
       const [sitemaps, cwv] = await Promise.all([
         fetchSitemaps(domain.gsc_site_url, accessToken),
         fetchCrUX(
@@ -76,13 +94,20 @@ export async function syncDomain(domainId: number): Promise<void> {
         ),
       ])
       setIssuesCache(db, domainId, { sitemaps, cwv })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[Issues] ${domain.hostname}:`, msg)
+      failures.push("issues")
     }
-
-    recordSync(db, domainId, "success")
-  } catch (err) {
-    recordSync(db, domainId, "error")
-    throw err
   }
+
+  if (failures.length > 0) {
+    recordSync(db, domainId, "error")
+    throw new Error(
+      `${domain.hostname}: ${failures.length} stage(s) failed (${failures.join(", ")})`
+    )
+  }
+  recordSync(db, domainId, "success")
 }
 
 export async function startupSync(): Promise<void> {
