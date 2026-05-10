@@ -54,4 +54,14 @@ export function runMigrations(db: Database): void {
       db.run("PRAGMA foreign_keys = ON")
     }
   }
+
+  // sync_log.error_message is a plain nullable column, so a normal ALTER
+  // works here (no FK / NOT-NULL DEFAULT issues).
+  const syncCols = db
+    .query<{ name: string }, []>("PRAGMA table_info(sync_log)")
+    .all()
+    .map((c) => c.name)
+  if (!syncCols.includes("error_message")) {
+    db.exec("ALTER TABLE sync_log ADD COLUMN error_message TEXT")
+  }
 }

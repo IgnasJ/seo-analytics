@@ -20,7 +20,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <StartupSync />
           <div className="flex flex-col md:flex-row min-h-screen">
             <Sidebar />
-            <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 bg-muted/20">
+            {/* Bottom padding on mobile keeps page content above the fixed
+                bottom navigation bar (and respects iOS home-bar safe area).
+                Reset to standard padding from md+ where the sidebar is on
+                the left. */}
+            <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 bg-muted/20 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
               {children}
             </main>
           </div>

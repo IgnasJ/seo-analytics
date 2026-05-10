@@ -97,4 +97,22 @@ describe("listSyncLog", () => {
     // row still surfaces. This test asserts current cascade behaviour:
     expect(entries).toHaveLength(0)
   })
+
+  it("returns the error_message column for failed syncs", () => {
+    const id = seedDomain(db, "fails.com")
+    db.run(
+      "INSERT INTO sync_log (domain_id, status, error_message) VALUES (?, 'error', ?)",
+      [id, "GSC 403: insufficient permission"]
+    )
+    const { entries } = listSyncLog(db)
+    expect(entries[0].status).toBe("error")
+    expect(entries[0].error_message).toBe("GSC 403: insufficient permission")
+  })
+
+  it("returns null error_message for success rows", () => {
+    const id = seedDomain(db, "ok.com")
+    seedSync(db, id, "success")
+    const { entries } = listSyncLog(db)
+    expect(entries[0].error_message).toBeNull()
+  })
 })

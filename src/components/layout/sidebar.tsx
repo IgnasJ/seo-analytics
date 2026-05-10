@@ -88,9 +88,17 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile top bar - shown only on small screens */}
-      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between bg-background border-b px-3 py-2">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-sm">
+      {/* Mobile bottom bar — pinned at the bottom for thumb-friendly menu
+          access. Sits above the safe-area inset so it stays clear of the
+          home-bar gesture area on iOS. */}
+      <header
+        className="md:hidden fixed inset-x-0 bottom-0 z-30 flex items-center justify-between bg-background border-t px-3 py-2"
+        style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
+      >
+        <Link
+          href="/"
+          className="flex items-center gap-2 font-semibold text-sm"
+        >
           <Globe className="w-4 h-4" />
           SEO Dashboard
         </Link>
@@ -98,7 +106,7 @@ export function Sidebar() {
           type="button"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation menu"
-          className="p-1.5 rounded-md hover:bg-accent"
+          className="p-2 rounded-md hover:bg-accent"
         >
           <Menu className="w-5 h-5" />
         </button>

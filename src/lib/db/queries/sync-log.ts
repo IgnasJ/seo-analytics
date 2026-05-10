@@ -6,6 +6,7 @@ export interface SyncLogEntry {
   hostname: string | null
   status: "success" | "error"
   synced_at: number
+  error_message: string | null
 }
 
 export interface SyncLogPage {
@@ -40,7 +41,7 @@ export function listSyncLog(
   // changes, we want orphaned entries to be visible rather than swallowed.)
   const entries = db
     .query<SyncLogEntry, [number, number]>(
-      `SELECT s.id, s.domain_id, s.status, s.synced_at, d.hostname
+      `SELECT s.id, s.domain_id, s.status, s.synced_at, s.error_message, d.hostname
        FROM sync_log s
        LEFT JOIN domains d ON d.id = s.domain_id
        ORDER BY s.synced_at DESC, s.id DESC

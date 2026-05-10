@@ -76,6 +76,14 @@ export function getLastSyncedAt(db: Database, domainId: number): number | null {
   return row?.synced_at ?? null
 }
 
-export function recordSync(db: Database, domainId: number, status: "success" | "error"): void {
-  db.run("INSERT INTO sync_log (domain_id, status) VALUES (?, ?)", [domainId, status])
+export function recordSync(
+  db: Database,
+  domainId: number,
+  status: "success" | "error",
+  errorMessage?: string
+): void {
+  db.run(
+    "INSERT INTO sync_log (domain_id, status, error_message) VALUES (?, ?, ?)",
+    [domainId, status, errorMessage ?? null]
+  )
 }

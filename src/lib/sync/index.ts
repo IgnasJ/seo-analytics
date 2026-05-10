@@ -43,10 +43,16 @@ export async function syncDomain(domainId: number): Promise<void> {
   // We split the sync into independent stages and catch each one so a single
   // permission error (e.g. GSC 403 because the user isn't a Search Console
   // verified owner of the property) doesn't drop the GA4 data we successfully
-  // pulled. Failures are logged with context and the sync_log row is marked
-  // 'error' if anything failed at all, otherwise 'success'.
+  // pulled. Each failure stores both the stage label (for the summary) and
+  // the underlying error message (so the UI can show it on click).
   const accessToken = await getValidAccessToken(tokenRow.refresh_token_encrypted)
-  const failures: string[] = []
+  const failures: { stage: string; message: string }[] = []
+
+  function recordFailure(stage: string, err: unknown): void {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`[${stage}] ${domain!.hostname}:`, message)
+    failures.push({ stage, message })
+  }
 
   if (domain.ga4_property_id) {
     for (const range of DATE_RANGES) {
@@ -59,9 +65,7 @@ export async function syncDomain(domainId: number): Promise<void> {
         )
         setAnalyticsCache(db, domainId, range.key, data)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        console.error(`[GA4] ${domain.hostname} ${range.key}:`, msg)
-        failures.push(`GA4 ${range.key}`)
+        recordFailure(`GA4 ${range.key}`, err)
       }
     }
   }
@@ -77,9 +81,7 @@ export async function syncDomain(domainId: number): Promise<void> {
         )
         setGscCache(db, domainId, range.key, data)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        console.error(`[GSC] ${domain.hostname} ${range.key}:`, msg)
-        failures.push(`GSC ${range.key}`)
+        recordFailure(`GSC ${range.key}`, err)
       }
     }
 
@@ -95,19 +97,37 @@ export async function syncDomain(domainId: number): Promise<void> {
       ])
       setIssuesCache(db, domainId, { sitemaps, cwv })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error(`[Issues] ${domain.hostname}:`, msg)
-      failures.push("issues")
+      recordFailure("issues", err)
     }
   }
 
   if (failures.length > 0) {
-    recordSync(db, domainId, "error")
-    throw new Error(
-      `${domain.hostname}: ${failures.length} stage(s) failed (${failures.join(", ")})`
-    )
+    // Group identical messages so a 403 hitting all 6 GSC ranges renders as
+    // "GSC today, GSC yesterday, … (7 stages): User does not have…".
+    const summary = summariseFailures(failures)
+    recordSync(db, domainId, "error", summary)
+    throw new Error(`${domain.hostname}: ${summary}`)
   }
   recordSync(db, domainId, "success")
+}
+
+function summariseFailures(
+  failures: { stage: string; message: string }[]
+): string {
+  // Group by message so repeated identical errors collapse into one entry.
+  const byMessage = new Map<string, string[]>()
+  for (const f of failures) {
+    const list = byMessage.get(f.message) ?? []
+    list.push(f.stage)
+    byMessage.set(f.message, list)
+  }
+  return Array.from(byMessage.entries())
+    .map(([msg, stages]) =>
+      stages.length > 1
+        ? `${stages.length} stages (${stages.join(", ")}): ${msg}`
+        : `${stages[0]}: ${msg}`
+    )
+    .join("\n")
 }
 
 export async function startupSync(): Promise<void> {

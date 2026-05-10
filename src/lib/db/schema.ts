@@ -32,7 +32,8 @@ export const SCHEMA_SQL = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     domain_id INTEGER REFERENCES domains(id) ON DELETE CASCADE,
     synced_at INTEGER NOT NULL DEFAULT (unixepoch()),
-    status TEXT NOT NULL DEFAULT 'success'
+    status TEXT NOT NULL DEFAULT 'success',
+    error_message TEXT
   );
 
   CREATE TABLE IF NOT EXISTS analytics_cache (

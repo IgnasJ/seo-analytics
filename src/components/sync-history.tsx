@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RefreshCw } from "lucide-react"
@@ -13,6 +13,7 @@ interface SyncLogEntry {
   hostname: string | null
   status: "success" | "error"
   synced_at: number
+  error_message: string | null
 }
 
 interface SyncLogPage {
@@ -30,6 +31,7 @@ export function SyncHistory() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
 
   // Stash a stable ref so concurrent page changes don't race.
   const requestId = useRef(0)
@@ -102,23 +104,60 @@ export function SyncHistory() {
                 </tr>
               </thead>
               <tbody>
-                {data?.entries.map((e) => (
-                  <tr key={e.id} className="border-b last:border-0">
-                    <td className="py-2 font-medium">
-                      {e.hostname ?? (
-                        <span className="text-muted-foreground italic">
-                          (deleted)
-                        </span>
+                {data?.entries.map((e) => {
+                  const expandable = e.status === "error" && !!e.error_message
+                  const isOpen = expandedId === e.id
+                  return (
+                    <Fragment key={e.id}>
+                      <tr
+                        className={`border-b last:border-0 ${
+                          expandable ? "cursor-pointer hover:bg-muted/40" : ""
+                        }`}
+                        onClick={
+                          expandable
+                            ? () =>
+                                setExpandedId((curr) =>
+                                  curr === e.id ? null : e.id
+                                )
+                            : undefined
+                        }
+                      >
+                        <td className="py-2 font-medium">
+                          {e.hostname ?? (
+                            <span className="text-muted-foreground italic">
+                              (deleted)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 text-muted-foreground">
+                          {formatTimestamp(e.synced_at)}
+                        </td>
+                        <td className="py-2 text-right">
+                          <span className="inline-flex items-center gap-1">
+                            {expandable && (
+                              <span className="text-xs text-muted-foreground">
+                                {isOpen ? "hide" : "view"}
+                              </span>
+                            )}
+                            <StatusBadge status={e.status} />
+                          </span>
+                        </td>
+                      </tr>
+                      {isOpen && e.error_message && (
+                        <tr className="bg-muted/30">
+                          <td
+                            colSpan={3}
+                            className="px-3 py-2 text-xs text-red-700"
+                          >
+                            <pre className="whitespace-pre-wrap break-words font-mono">
+                              {e.error_message}
+                            </pre>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="py-2 text-muted-foreground">
-                      {formatTimestamp(e.synced_at)}
-                    </td>
-                    <td className="py-2 text-right">
-                      <StatusBadge status={e.status} />
-                    </td>
-                  </tr>
-                ))}
+                    </Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </div>
