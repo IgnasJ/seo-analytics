@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { LighthouseGauges } from "@/components/audit/lighthouse-gauges"
 import { AuditDetail } from "@/components/audit/audit-detail"
+import { Hint } from "@/components/ui/hint"
 import type { Audit, AuditResult } from "@/types/audit"
 
 interface DetailResponse {
@@ -312,13 +313,13 @@ function ScorePills({ result }: { result: AuditResult }) {
               ? "bg-amber-100 text-amber-700 border-amber-300"
               : "bg-red-100 text-red-700 border-red-300"
         return (
-          <span
+          <Hint
             key={it.label}
+            text={`${it.full}: ${it.value} / 100`}
             className={`text-xs border rounded-md px-1.5 py-0.5 font-medium cursor-help ${colour}`}
-            title={`${it.full}: ${it.value} / 100`}
           >
             {it.label} {it.value}
-          </span>
+          </Hint>
         )
       })}
     </div>

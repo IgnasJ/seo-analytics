@@ -1,4 +1,5 @@
 import type { AuditResult } from "@/types/audit"
+import { Hint } from "@/components/ui/hint"
 
 interface GaugeProps {
   label: string
@@ -26,7 +27,7 @@ function Gauge({ label, tooltip, score, delta }: GaugeProps) {
       {/* Fixed-size square wrapper holds the SVG ring AND the centered score
           so the numeric label is always perfectly centered regardless of
           digit count. Avoids the previous negative-margin hack. */}
-      <div className="relative w-24 h-24" title={tooltip}>
+      <div className="relative w-24 h-24">
         <svg
           viewBox="0 0 96 96"
           className="absolute inset-0 -rotate-90 w-full h-full"
@@ -60,12 +61,12 @@ function Gauge({ label, tooltip, score, delta }: GaugeProps) {
       {/* Label + delta: delta line is always rendered (with empty content when
           there's no prior audit) so all four columns have identical heights
           and the gauges line up across the row. */}
-      <span
-        title={tooltip}
+      <Hint
+        text={tooltip}
         className="mt-3 text-xs uppercase tracking-wide text-muted-foreground cursor-help text-center"
       >
         {label}
-      </span>
+      </Hint>
       <span
         className={
           "text-xs font-medium h-4 leading-4 " +

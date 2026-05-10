@@ -3,6 +3,7 @@
 import { useState } from "react"
 import type { AuditCategory, AuditEntry, AuditResult } from "@/types/audit"
 import { Badge } from "@/components/ui/badge"
+import { Hint } from "@/components/ui/hint"
 import { ChevronDown, ChevronRight, CheckCircle2, AlertCircle, XCircle } from "lucide-react"
 
 const CATEGORY_LABEL: Record<AuditCategory, string> = {
@@ -228,12 +229,9 @@ function LabCwvStrip({ current, prior }: Props) {
         const d = delta(it.raw, it.prior, true) // lab metrics: lower is better
         return (
           <div key={it.label} className="flex flex-col">
-            <span
-              title={it.tooltip}
-              className="text-muted-foreground cursor-help"
-            >
+            <Hint text={it.tooltip} className="text-muted-foreground cursor-help w-fit">
               {it.label}
-            </span>
+            </Hint>
             <span className="font-medium">{it.current}</span>
             {d && (
               <span className={d.better ? "text-green-600" : "text-red-600"}>

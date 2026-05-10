@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Sidebar } from "@/components/layout/sidebar"
 import { StartupSync } from "@/components/startup-sync"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -15,13 +16,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={inter.className}>
-        <StartupSync />
-        <div className="flex flex-col md:flex-row min-h-screen">
-          <Sidebar />
-          <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 bg-muted/20">
-            {children}
-          </main>
-        </div>
+        <TooltipProvider delay={0}>
+          <StartupSync />
+          <div className="flex flex-col md:flex-row min-h-screen">
+            <Sidebar />
+            <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 bg-muted/20">
+              {children}
+            </main>
+          </div>
+        </TooltipProvider>
       </body>
     </html>
   )
