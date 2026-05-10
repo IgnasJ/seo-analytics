@@ -76,6 +76,19 @@ export function getLastSyncedAt(db: Database, domainId: number): number | null {
   return row?.synced_at ?? null
 }
 
+/** Status of the most recent sync attempt for a domain, or null if none. */
+export function getLastSyncStatus(
+  db: Database,
+  domainId: number
+): "success" | "error" | null {
+  const row = db
+    .query<{ status: "success" | "error" }, [number]>(
+      "SELECT status FROM sync_log WHERE domain_id = ? ORDER BY synced_at DESC LIMIT 1"
+    )
+    .get(domainId)
+  return row?.status ?? null
+}
+
 export function recordSync(
   db: Database,
   domainId: number,

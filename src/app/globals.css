@@ -128,3 +128,9 @@
     @apply font-sans;
   }
 }
+
+/* Dashboard KPI strip — hidden by default; the ViewToggle sets
+   data-kpi="on" on <body> when the user picks "Cards + KPI" mode. */
+body[data-kpi="on"] [data-slot="kpi-strip"] {
+  display: grid;
+}

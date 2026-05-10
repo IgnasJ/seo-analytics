@@ -1,101 +1,141 @@
 import Link from "next/link"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Globe, AlertTriangle, TrendingUp, Link2Off } from "lucide-react"
+import { Sparkline } from "@/components/dashboard/sparkline"
+import { TrendChip } from "@/components/dashboard/trend-chip"
+import { StatusDot } from "@/components/dashboard/status-dot"
+import { SyncIcon } from "@/components/dashboard/sync-icon"
+import { cardHealth, type Severity } from "@/lib/seo/health"
 
-interface DomainCardProps {
+export interface DomainCardProps {
   id: number
   hostname: string
+  /** Cached series — last ~30 days. */
+  dailySessions: number[]
+  dailyClicks: number[]
+  /** Snapshot metric values. */
   sessions: number | null
-  avgPosition: number | null
-  issueCount: number
-  lastSyncedAt: number | null
+  clicks: number | null
+  /** Avg position over the current (1m) range and the 7d range, for the trend chip. */
+  position1m: number | null
+  position7d: number | null
+  /** Health signals fed into cardHealth. */
   ga4Linked: boolean
   gscLinked: boolean
+  lastSyncedAt: number | null
+  lastSyncStatus: "success" | "error" | null
+  issueCount: number
 }
 
-export function DomainCard({
-  id,
-  hostname,
-  sessions,
-  avgPosition,
-  issueCount,
-  lastSyncedAt,
-  ga4Linked,
-  gscLinked,
-}: DomainCardProps) {
-  const syncAgo = lastSyncedAt
-    ? Math.round((Date.now() / 1000 - lastSyncedAt) / 3600)
-    : null
+const BORDER_COLOR: Record<Severity, string> = {
+  green: "border-l-green-500",
+  amber: "border-l-amber-500",
+  red: "border-l-red-500",
+}
 
-  const unlinked: string[] = []
-  if (!ga4Linked) unlinked.push("GA4")
-  if (!gscLinked) unlinked.push("GSC")
+function formatNumber(n: number | null): string {
+  if (n === null) return "—"
+  if (n >= 10000) return `${(n / 1000).toFixed(1)}K`
+  return n.toLocaleString()
+}
 
-  // Layout pattern: full-card Link sits absolute-positioned at z-0 so clicking
-  // anywhere navigates to the detail page. Inner content has pointer-events
-  // disabled by default so clicks fall through, with specific interactive
-  // elements (the unlinked-services warning, here) re-enabling them at z-10
-  // to register their own clicks. Avoids the invalid `<a>` inside `<a>`
-  // problem and preserves middle-click / right-click behavior on both links.
+export function DomainCard(props: DomainCardProps) {
+  const {
+    id,
+    hostname,
+    dailySessions,
+    dailyClicks,
+    sessions,
+    clicks,
+    position1m,
+    position7d,
+    ga4Linked,
+    gscLinked,
+    lastSyncedAt,
+    lastSyncStatus,
+    issueCount,
+  } = props
+
+  const { severity, reasons } = cardHealth({
+    ga4Linked,
+    gscLinked,
+    lastSyncedAt,
+    lastSyncStatus,
+    issueCount,
+  })
+
+  // Layered links: full-card link covers the card via z-0 + pointer-events
+  // fallthrough; the StatusDot tooltip and SyncIcon sit at z-10 with their
+  // own click targets re-enabled.
   return (
-    <Card className="relative h-full hover:shadow-md transition-shadow cursor-pointer">
+    <div
+      className={`relative h-full rounded-md border bg-card border-l-4 ${BORDER_COLOR[severity]} hover:shadow-md transition-shadow cursor-pointer group`}
+    >
       <Link
         href={`/domain/${id}`}
         aria-label={`Open ${hostname} dashboard`}
         className="absolute inset-0 z-0 rounded-md focus-visible:outline-2 focus-visible:outline-primary"
       />
-      <CardHeader className="pb-2 relative z-10 pointer-events-none">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
+
+      <div className="relative z-10 p-3 pointer-events-none">
+        {/* Header row: status dot + hostname (left), sync clock (right) */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-1.5 min-w-0 pointer-events-auto">
+            <StatusDot severity={severity} reasons={reasons} />
             <span className="font-medium text-sm truncate">{hostname}</span>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {issueCount > 0 && (
-              <Badge variant="destructive" className="text-xs">
-                <AlertTriangle className="w-3 h-3 mr-1" />
-                {issueCount}
-              </Badge>
-            )}
-          </div>
+          <SyncIcon
+            domainId={id}
+            lastSyncedAt={lastSyncedAt}
+            lastSyncStatus={lastSyncStatus}
+          />
         </div>
-      </CardHeader>
-      <CardContent className="relative z-10 pointer-events-none">
-        {unlinked.length > 0 && (
-          <Link
-            href="/domains"
-            className="mb-3 flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 pointer-events-auto hover:bg-amber-100 transition-colors"
-          >
-            <Link2Off className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>
-              <span className="font-medium">{unlinked.join(" & ")}</span> not
-              linked.{" "}
-              <span className="underline">Link in Domains →</span>
-            </span>
-          </Link>
-        )}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Sessions (1m)</p>
-            <p className="text-lg font-semibold">
-              {sessions?.toLocaleString() ?? "—"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Avg Position</p>
-            <div className="flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 text-muted-foreground" />
-              <p className="text-lg font-semibold">
-                {avgPosition ? avgPosition.toFixed(1) : "—"}
-              </p>
-            </div>
-          </div>
+
+        {/* Three metric rows: number left, sparkline / trend chip right */}
+        <div className="space-y-1">
+          <MetricRow
+            label="sess"
+            value={formatNumber(sessions)}
+            spark={<Sparkline values={dailySessions} className="text-blue-500" ariaLabel={`Sessions trend`} />}
+          />
+          <MetricRow
+            label="clk"
+            value={formatNumber(clicks)}
+            spark={<Sparkline values={dailyClicks} className="text-emerald-500" ariaLabel={`Clicks trend`} />}
+          />
+          <MetricRow
+            label="pos"
+            value={position1m !== null ? position1m.toFixed(1) : "—"}
+            spark={
+              <TrendChip
+                current={position1m}
+                previous={position7d}
+                lowerIsBetter
+                format="absolute"
+                decimals={1}
+              />
+            }
+          />
         </div>
-        <p className="text-xs text-muted-foreground mt-3">
-          {syncAgo !== null ? `Synced ${syncAgo}h ago` : "Never synced"}
-        </p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
+  )
+}
+
+function MetricRow({
+  label,
+  value,
+  spark,
+}: {
+  label: string
+  value: string
+  spark: React.ReactNode
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-sm">
+      <span className="font-mono">
+        <span className="font-semibold tabular-nums">{value}</span>
+        <span className="ml-1 text-xs text-muted-foreground">{label}</span>
+      </span>
+      <span className="shrink-0">{spark}</span>
+    </div>
   )
 }
