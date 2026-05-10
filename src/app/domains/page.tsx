@@ -22,6 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react"
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 
 interface Domain {
   id: number
@@ -237,7 +238,12 @@ export default function DomainsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <h1 className="text-xl font-semibold">Domains</h1>
+      <div>
+        <PageBreadcrumbs
+          items={[{ label: "Dashboard", href: "/" }, { label: "Domains" }]}
+        />
+        <h1 className="text-xl font-semibold">Domains</h1>
+      </div>
 
       <Card>
         <CardHeader>

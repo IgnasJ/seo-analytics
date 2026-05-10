@@ -11,6 +11,7 @@ import { SyncAllButton } from "@/components/sync-all-button"
 import { SyncHistoryDisclosure } from "@/components/sync-history-disclosure"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { formatInteger } from "@/lib/format"
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 
 export const dynamic = "force-dynamic"
 
@@ -26,7 +27,12 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-xl font-semibold">Settings</h1>
+      <div>
+        <PageBreadcrumbs
+          items={[{ label: "Dashboard", href: "/" }, { label: "Settings" }]}
+        />
+        <h1 className="text-xl font-semibold">Settings</h1>
+      </div>
 
       <Card>
         <CardHeader>

@@ -18,6 +18,7 @@ import { LighthouseGauges } from "@/components/audit/lighthouse-gauges"
 import { AuditDetail } from "@/components/audit/audit-detail"
 import { Hint } from "@/components/ui/hint"
 import { formatDateTime } from "@/lib/format"
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 import type { Audit, AuditResult } from "@/types/audit"
 
 interface DetailResponse {
@@ -172,7 +173,12 @@ export default function AuditPage() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <h1 className="text-xl font-semibold">SEO audit</h1>
+      <div>
+        <PageBreadcrumbs
+          items={[{ label: "Dashboard", href: "/" }, { label: "Audit" }]}
+        />
+        <h1 className="text-xl font-semibold">SEO audit</h1>
+      </div>
 
       <Card>
         <CardHeader>

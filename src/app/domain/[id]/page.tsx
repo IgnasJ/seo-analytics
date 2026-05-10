@@ -29,6 +29,7 @@ import {
 import type { AnalyticsReport } from "@/types/analytics"
 import type { GscReport, IssuesReport } from "@/types/search-console"
 import { computeOpportunities } from "@/lib/seo/opportunities"
+import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
 
 export const dynamic = "force-dynamic"
 
@@ -69,6 +70,12 @@ export default async function DomainPage({
 
   return (
     <div>
+      <PageBreadcrumbs
+        items={[
+          { label: "Dashboard", href: "/" },
+          { label: domain.hostname },
+        ]}
+      />
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
         <div>
           <h1 className="text-xl font-semibold">{domain.hostname}</h1>
