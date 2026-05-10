@@ -18,7 +18,9 @@ export async function fetchGSCReport(
         startDate,
         endDate,
         dimensions: ["query"],
-        rowLimit: 25,
+        // Bumped from 25 → 500 so the Top Queries table can paginate and the
+        // Opportunities engine has more data to find quick-wins in.
+        rowLimit: 500,
         aggregationType: "byPage",
       },
     }),
@@ -28,7 +30,7 @@ export async function fetchGSCReport(
         startDate,
         endDate,
         dimensions: ["page"],
-        rowLimit: 25,
+        rowLimit: 500,
       },
     }),
     webmasters.searchanalytics.query({

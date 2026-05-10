@@ -41,7 +41,10 @@ export async function fetchGA4Report(
         dimensions: [{ name: "pagePath" }],
         metrics: [{ name: "sessions" }, { name: "screenPageViews" }],
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-        limit: "20",
+        // Bumped from 20 → 200 so the Top Pages table can paginate. GA4
+        // returns rows ordered by sessions DESC, so trailing entries are
+        // your long-tail pages — useful for SEO content audits.
+        limit: "200",
       },
     }),
     analyticsdata.properties.runReport({
