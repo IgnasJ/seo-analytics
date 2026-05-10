@@ -236,6 +236,27 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
             </div>
           ) : (
             <div className="space-y-8">
+              {/* LEADERBOARD — first because the eye-icon column controls
+                  what shows up in the trend / breakdown sections below. */}
+              <section id="leaderboard" className="scroll-mt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Leaderboard</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Headline numbers across all visible domains. Click any
+                      column header to sort. Click the eye icon to exclude a
+                      domain from the trend charts and breakdown bars.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <LeaderboardTable
+                      rows={leaderboardRows}
+                      excludedIds={excludedIds}
+                    />
+                  </CardContent>
+                </Card>
+              </section>
+
               {/* TRENDS */}
               <section id="trends" className="space-y-4 scroll-mt-4">
                 <Card>
@@ -289,25 +310,6 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                     <MultiDomainLineChart
                       series={impressionsSeries}
                       dateKeys={clicksDates}
-                    />
-                  </CardContent>
-                </Card>
-              </section>
-
-              {/* LEADERBOARD */}
-              <section id="leaderboard" className="scroll-mt-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Leaderboard</CardTitle>
-                    <p className="text-xs text-muted-foreground">
-                      Headline numbers across all visible domains. Click any
-                      column header to sort.
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <LeaderboardTable
-                      rows={leaderboardRows}
-                      excludedIds={excludedIds}
                     />
                   </CardContent>
                 </Card>
