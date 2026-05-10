@@ -11,7 +11,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Trash2, Pencil, Check, X, ArrowUp, ArrowDown } from "lucide-react"
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  Check,
+  X,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react"
 
 interface Domain {
   id: number
@@ -38,6 +48,12 @@ interface DiscoveryResult {
 export default function DomainsPage() {
   const [domains, setDomains] = useState<Domain[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+
+  // Disclosure state — both panels start open. Stored in state rather than
+  // <details> so the open/closed status is part of the React tree (lets us
+  // animate later, persist to localStorage, etc.).
+  const [categoriesOpen, setCategoriesOpen] = useState(true)
+  const [domainsOpen, setDomainsOpen] = useState(true)
 
   // Domain add state
   const [newHostname, setNewHostname] = useState("")
@@ -224,8 +240,26 @@ export default function DomainsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Categories</CardTitle>
+          <button
+            type="button"
+            onClick={() => setCategoriesOpen((o) => !o)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <CardTitle className="text-sm flex items-center gap-2">
+              {categoriesOpen ? (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              )}
+              Categories
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">
+              {categories.length}{" "}
+              total
+            </span>
+          </button>
         </CardHeader>
+        {categoriesOpen && (
         <CardContent className="space-y-3">
           <div className="space-y-1">
             {categories.map((c) => (
@@ -338,12 +372,30 @@ export default function DomainsPage() {
             <p className="text-xs text-destructive">{categoryError}</p>
           )}
         </CardContent>
+        )}
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Domains</CardTitle>
+          <button
+            type="button"
+            onClick={() => setDomainsOpen((o) => !o)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <CardTitle className="text-sm flex items-center gap-2">
+              {domainsOpen ? (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              )}
+              Domains
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">
+              {domains.length} total
+            </span>
+          </button>
         </CardHeader>
+        {domainsOpen && (
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <input
@@ -374,7 +426,7 @@ export default function DomainsPage() {
                         changeDomainCategory(domain.id, Number(v))
                       }
                     >
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger className="h-8 text-xs w-36 shrink-0">
                         <SelectValue>
                           {(value: string) =>
                             categories.find((c) => String(c.id) === value)
@@ -486,6 +538,7 @@ export default function DomainsPage() {
             ))}
           </div>
         </CardContent>
+        )}
       </Card>
     </div>
   )
