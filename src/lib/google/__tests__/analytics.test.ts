@@ -59,5 +59,7 @@ describe("fetchGA4Report", () => {
     expect(result.daily).toBeInstanceOf(Array)
     expect(result.channels).toBeInstanceOf(Array)
     expect(result.topPages).toBeInstanceOf(Array)
+    expect(result.countries).toBeInstanceOf(Array)
+    expect(result.devices).toBeInstanceOf(Array)
   })
 })

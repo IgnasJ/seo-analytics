@@ -13,6 +13,8 @@ import { MetricsOverview } from "@/components/analytics/metrics-overview"
 import { TrafficChart } from "@/components/analytics/traffic-chart"
 import { ChannelChart } from "@/components/analytics/channel-chart"
 import { TopPagesTable } from "@/components/analytics/top-pages-table"
+import { CountryChart } from "@/components/analytics/country-chart"
+import { DeviceChart } from "@/components/analytics/device-chart"
 import { GscOverview } from "@/components/search-console/gsc-overview"
 import { GscChart } from "@/components/search-console/gsc-chart"
 import { PositionBucketsChart } from "@/components/search-console/position-buckets"
@@ -87,12 +89,18 @@ export default async function DomainPage({
       </div>
 
       <Tabs defaultValue="analytics">
-        <TabsList className="mb-4">
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="search-console">Search Console</TabsTrigger>
-          <TabsTrigger value="issues">Issues</TabsTrigger>
-          <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
-        </TabsList>
+        {/* Tabs row scrolls horizontally on viewports too narrow to fit
+            them all. Faded mask on the right edge hints at hidden tabs.
+            -mx negative margin lets the scroll area extend to the page
+            edge on mobile so the last tab isn't visually cropped. */}
+        <div className="-mx-3 sm:-mx-4 md:mx-0 px-3 sm:px-4 md:px-0 mb-4 overflow-x-auto scrollbar-thin">
+          <TabsList className="inline-flex w-max min-w-full">
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="search-console">Search Console</TabsTrigger>
+            <TabsTrigger value="issues">Issues</TabsTrigger>
+            <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="analytics" className="space-y-4">
           <RangeBar range={range} />
@@ -114,6 +122,24 @@ export default async function DomainPage({
                   </CardHeader>
                   <CardContent>
                     <ChannelChart data={analytics.channels} />
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Top countries</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CountryChart data={analytics.countries ?? []} />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Devices</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DeviceChart data={analytics.devices ?? []} />
                   </CardContent>
                 </Card>
               </div>

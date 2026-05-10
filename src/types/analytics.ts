@@ -23,9 +23,23 @@ export interface DailyRow {
   users: number
 }
 
+export interface CountryRow {
+  country: string
+  sessions: number
+  users: number
+}
+
+export interface DeviceRow {
+  device: "desktop" | "mobile" | "tablet" | string
+  sessions: number
+  users: number
+}
+
 export interface AnalyticsReport {
   overview: AnalyticsOverview
   channels: ChannelRow[]
   topPages: PageRow[]
   daily: DailyRow[]
+  countries: CountryRow[]
+  devices: DeviceRow[]
 }

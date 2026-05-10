@@ -1,5 +1,12 @@
 import { google } from "googleapis"
-import type { AnalyticsReport, ChannelRow, PageRow, DailyRow } from "@/types/analytics"
+import type {
+  AnalyticsReport,
+  ChannelRow,
+  CountryRow,
+  DailyRow,
+  DeviceRow,
+  PageRow,
+} from "@/types/analytics"
 import { recordApiCall } from "@/lib/db/queries/api-usage"
 
 export async function fetchGA4Report(
@@ -12,7 +19,7 @@ export async function fetchGA4Report(
   auth.setCredentials({ access_token: accessToken })
   const analyticsdata = google.analyticsdata({ version: "v1beta", auth })
 
-  // Three concurrent reports:
+  // Five concurrent reports:
   //   1. Daily breakdown over (date) with all 5 metrics + TOTAL aggregation —
   //      the TOTAL row replaces the previous separate dimension-less overview
   //      query, which GA4 was returning with empty metricValues for some
@@ -20,7 +27,9 @@ export async function fetchGA4Report(
   //      to exist, so the TOTAL aggregation always populates.
   //   2. Channel breakdown.
   //   3. Top pages breakdown.
-  const [dailyRes, channelsRes, pagesRes] = await Promise.all([
+  //   4. Country breakdown — limit 25, ordered by sessions DESC.
+  //   5. Device-category breakdown — desktop / mobile / tablet, max 3 rows.
+  const [dailyRes, channelsRes, pagesRes, countriesRes, devicesRes] = await Promise.all([
     analyticsdata.properties.runReport({
       property: propertyId,
       requestBody: {
@@ -59,8 +68,29 @@ export async function fetchGA4Report(
         limit: "200",
       },
     }),
+    analyticsdata.properties.runReport({
+      property: propertyId,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "country" }],
+        metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: "25",
+      },
+    }),
+    analyticsdata.properties.runReport({
+      property: propertyId,
+      requestBody: {
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: "deviceCategory" }],
+        metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      },
+    }),
   ])
 
+  recordApiCall("ga4")
+  recordApiCall("ga4")
   recordApiCall("ga4")
   recordApiCall("ga4")
   recordApiCall("ga4")
@@ -98,5 +128,17 @@ export async function fetchGA4Report(
     users: Number(r.metricValues?.[1]?.value ?? 0),
   }))
 
-  return { overview, channels, topPages, daily }
+  const countries: CountryRow[] = (countriesRes.data.rows ?? []).map((r) => ({
+    country: r.dimensionValues?.[0]?.value ?? "Unknown",
+    sessions: Number(r.metricValues?.[0]?.value ?? 0),
+    users: Number(r.metricValues?.[1]?.value ?? 0),
+  }))
+
+  const devices: DeviceRow[] = (devicesRes.data.rows ?? []).map((r) => ({
+    device: r.dimensionValues?.[0]?.value ?? "unknown",
+    sessions: Number(r.metricValues?.[0]?.value ?? 0),
+    users: Number(r.metricValues?.[1]?.value ?? 0),
+  }))
+
+  return { overview, channels, topPages, daily, countries, devices }
 }
