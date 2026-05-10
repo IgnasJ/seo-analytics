@@ -61,9 +61,12 @@ export function TopQueriesTable({ data }: { data: QueryRow[] }) {
 
       {data.length > PAGE_SIZE && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
-          <span>
-            Showing <strong>{start + 1}</strong>–<strong>{end}</strong> of{" "}
-            <strong>{data.length}</strong>
+          <span className="whitespace-nowrap">
+            Showing{" "}
+            <strong>
+              {start + 1}–{end}
+            </strong>{" "}
+            of <strong>{data.length}</strong>
           </span>
           <PageNav
             page={page}

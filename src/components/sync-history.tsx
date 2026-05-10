@@ -131,9 +131,12 @@ export function SyncHistory() {
 
         {data && data.total > 0 && (
           <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-muted-foreground">
-            <span>
-              Showing <strong>{start}</strong>–<strong>{end}</strong> of{" "}
-              <strong>{total}</strong>
+            <span className="whitespace-nowrap">
+              Showing{" "}
+              <strong>
+                {start}–{end}
+              </strong>{" "}
+              of <strong>{total}</strong>
             </span>
             <PageNav
               page={page}

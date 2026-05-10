@@ -23,6 +23,12 @@ export async function fetchGA4Report(
           { name: "bounceRate" },
           { name: "averageSessionDuration" },
         ],
+        // Explicitly request the TOTAL aggregation. Without this, GA4 will
+        // not populate `totals` in the response, AND the response body for a
+        // no-dimensions query may also have rows[0] missing on some property
+        // configurations. Asking for the total guarantees the metric values
+        // arrive in `data.totals[0]`.
+        metricAggregations: ["TOTAL"],
       },
     }),
     analyticsdata.properties.runReport({
@@ -58,15 +64,26 @@ export async function fetchGA4Report(
     }),
   ])
 
-  // GA4 only populates `data.totals` when `metricAggregations` is explicitly
-  // requested. With no dimensions in the request, the aggregated metric
-  // values live in `rows[0]` — that's GA4's "single result row" pattern.
-  // Falling back through both shapes makes the parser resilient to either
-  // form (and to the test fixture, which has both).
+  // With `metricAggregations: ["TOTAL"]` (set in the request above), GA4
+  // populates `data.totals[0].metricValues` reliably. Fall back to rows[0]
+  // for forward compatibility / the existing test fixture shape.
   const overviewMetrics =
-    overviewRes.data.rows?.[0]?.metricValues ??
     overviewRes.data.totals?.[0]?.metricValues ??
+    overviewRes.data.rows?.[0]?.metricValues ??
     []
+
+  if (overviewMetrics.length === 0) {
+    console.warn(
+      "[GA4] overview metrics empty for property",
+      propertyId,
+      "— response keys:",
+      Object.keys(overviewRes.data ?? {}),
+      "rows:",
+      overviewRes.data.rows?.length,
+      "totals:",
+      overviewRes.data.totals?.length
+    )
+  }
 
   const overview = {
     sessions: Number(overviewMetrics[0]?.value ?? 0),
