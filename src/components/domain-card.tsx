@@ -158,20 +158,25 @@ export function DomainCard(props: DomainCardProps) {
                 text={
                   <div className="space-y-1">
                     <div>
-                      Compares the last 30 days vs the last 7 days.
+                      Compares your <strong>last 7 days</strong> against your{" "}
+                      <strong>30-day baseline</strong>. Both are simple
+                      averages of the per-query positions in their period.
                     </div>
                     <div>
-                      Green ↓ = rank improved (number went down). Red ↑ = rank
-                      slipped (number went up).
+                      Green ↓ means your recent week is ranking better than
+                      your normal (recent number is lower than the baseline).
+                      Red ↑ means it slipped.
                     </div>
                   </div>
                 }
                 className="inline-flex pointer-events-auto"
               >
                 <span className="cursor-help">
+                  {/* current = recent 7-day average, previous = 30-day
+                      baseline — so a smaller "current" is an improvement. */}
                   <TrendChip
-                    current={position1m}
-                    previous={position7d}
+                    current={position7d}
+                    previous={position1m}
                     lowerIsBetter
                     format="absolute"
                     decimals={1}

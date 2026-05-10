@@ -51,16 +51,20 @@ export function KpiStrip({ data }: { data: KpiData }) {
               last 30 days.
             </div>
             <div>
-              Sparkline shows the daily total. Trend chip compares 30-day
-              total vs 7-day total.
+              The trend chip compares your <strong>recent 7-day daily
+              average</strong> against your <strong>30-day daily average
+              baseline</strong>. A green ↑ means traffic is up vs your
+              normal pace.
             </div>
           </div>
         }
         value={formatNumber(data.totalSessions)}
         trend={
+          // Recent rate vs baseline rate. Comparing totals directly
+          // (1m vs 7d) is meaningless because 1m has 4× more days.
           <TrendChip
-            current={data.totalSessions}
-            previous={data.totalSessionsPrior}
+            current={data.totalSessionsPrior / 7}
+            previous={data.totalSessions / 30}
             format="percent"
           />
         }
@@ -86,13 +90,17 @@ export function KpiStrip({ data }: { data: KpiData }) {
               These are visitors who clicked through from Google search
               results — a subset of total sessions.
             </div>
+            <div>
+              Trend chip compares <strong>recent 7-day daily average</strong>
+              against the <strong>30-day daily average baseline</strong>.
+            </div>
           </div>
         }
         value={formatNumber(data.totalClicks)}
         trend={
           <TrendChip
-            current={data.totalClicks}
-            previous={data.totalClicksPrior}
+            current={data.totalClicksPrior / 7}
+            previous={data.totalClicks / 30}
             format="percent"
           />
         }
@@ -127,20 +135,22 @@ export function KpiStrip({ data }: { data: KpiData }) {
               <div className="space-y-1">
                 <div>
                   Average Google search rank, weighted by impressions across
-                  all your domains.
+                  all your domains. <strong>Lower is better.</strong>
                 </div>
                 <div>
-                  <strong>Lower is better.</strong> Green ↓ means rank improved
-                  (number decreased); red ↑ means rank slipped.
+                  Compares your <strong>last 7 days</strong> against your{" "}
+                  <strong>30-day baseline</strong>. Green ↓ means your recent
+                  week is ranking better than normal; red ↑ means it slipped.
                 </div>
-                <div>30-day vs 7-day comparison.</div>
               </div>
             }
             className="cursor-help"
           >
+            {/* current = recent 7d, previous = 30d baseline. Smaller
+                "current" = improvement under lowerIsBetter. */}
             <TrendChip
-              current={data.avgPosition}
-              previous={data.avgPositionPrior}
+              current={data.avgPositionPrior}
+              previous={data.avgPosition}
               lowerIsBetter
               format="absolute"
               decimals={1}
