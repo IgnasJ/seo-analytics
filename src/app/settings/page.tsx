@@ -26,20 +26,6 @@ export default function SettingsPage() {
           </a>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Domains & categories</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Domain management has moved to its own page —{" "}
-            <a href="/domains" className="underline">
-              go to Domains →
-            </a>
-          </p>
-        </CardContent>
-      </Card>
     </div>
   )
 }
