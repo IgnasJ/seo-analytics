@@ -94,6 +94,18 @@ export function DomainCard(props: DomainCardProps) {
         <div className="space-y-1">
           <MetricRow
             label="sessions"
+            labelTooltip={
+              <div className="space-y-1">
+                <div>
+                  <strong>Sessions</strong> — visits to the site over the last
+                  30 days, from Google Analytics 4.
+                </div>
+                <div>
+                  Sparkline shows daily session counts; auto-scaled to this
+                  card&apos;s own range.
+                </div>
+              </div>
+            }
             value={formatNumber(sessions)}
             spark={
               <Sparkline
@@ -105,6 +117,19 @@ export function DomainCard(props: DomainCardProps) {
           />
           <MetricRow
             label="clicks"
+            labelTooltip={
+              <div className="space-y-1">
+                <div>
+                  <strong>Clicks</strong> — visitors who clicked through from
+                  Google Search results in the last 30 days, from Search
+                  Console.
+                </div>
+                <div>
+                  Different from sessions: clicks count Google→site arrivals
+                  only; sessions count all traffic.
+                </div>
+              </div>
+            }
             value={formatNumber(clicks)}
             spark={
               <Sparkline
@@ -116,23 +141,29 @@ export function DomainCard(props: DomainCardProps) {
           />
           <MetricRow
             label="position"
+            labelTooltip={
+              <div className="space-y-1">
+                <div>
+                  <strong>Position</strong> — average rank in Google search
+                  results across all queries in the last 30 days.
+                </div>
+                <div>
+                  <strong>Lower is better.</strong> Position 1–3 = top of page
+                  1, 4–10 = rest of page 1, 11–20 = page 2.
+                </div>
+              </div>
+            }
             value={position1m !== null ? position1m.toFixed(1) : "—"}
             spark={
               <Hint
                 text={
                   <div className="space-y-1">
                     <div>
-                      <strong>Position</strong> is the average rank of this site
-                      across Google search results in the selected period.
+                      Compares the last 30 days vs the last 7 days.
                     </div>
                     <div>
-                      <strong>Lower is better</strong> — position 3 means rank
-                      #3 (top of page 1); position 18 is bottom of page 2.
-                    </div>
-                    <div>
-                      The chip compares the last 30 days vs the last 7 days.
-                      Green ↓ means rank improved (number went down); red ↑
-                      means rank slipped.
+                      Green ↓ = rank improved (number went down). Red ↑ = rank
+                      slipped (number went up).
                     </div>
                   </div>
                 }
@@ -158,10 +189,12 @@ export function DomainCard(props: DomainCardProps) {
 
 function MetricRow({
   label,
+  labelTooltip,
   value,
   spark,
 }: {
   label: string
+  labelTooltip?: React.ReactNode
   value: string
   spark: React.ReactNode
 }) {
@@ -169,7 +202,15 @@ function MetricRow({
     <div className="flex items-center justify-between gap-2 text-sm">
       <span className="min-w-0">
         <span className="font-semibold font-mono tabular-nums">{value}</span>
-        <span className="ml-1.5 text-xs text-muted-foreground">{label}</span>
+        {labelTooltip ? (
+          <Hint text={labelTooltip} className="inline-flex ml-1.5">
+            <span className="text-xs text-muted-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
+              {label}
+            </span>
+          </Hint>
+        ) : (
+          <span className="ml-1.5 text-xs text-muted-foreground">{label}</span>
+        )}
       </span>
       <span className="shrink-0">{spark}</span>
     </div>

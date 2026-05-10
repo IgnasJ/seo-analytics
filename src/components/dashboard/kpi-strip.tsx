@@ -44,6 +44,18 @@ export function KpiStrip({ data }: { data: KpiData }) {
     >
       <KpiTile
         label="Total Sessions"
+        labelTooltip={
+          <div className="space-y-1">
+            <div>
+              Sum of GA4 sessions across all your tracked domains over the
+              last 30 days.
+            </div>
+            <div>
+              Sparkline shows the daily total. Trend chip compares 30-day
+              total vs 7-day total.
+            </div>
+          </div>
+        }
         value={formatNumber(data.totalSessions)}
         trend={
           <TrendChip
@@ -64,6 +76,18 @@ export function KpiStrip({ data }: { data: KpiData }) {
       />
       <KpiTile
         label="Total Clicks"
+        labelTooltip={
+          <div className="space-y-1">
+            <div>
+              Sum of Search Console clicks across all your tracked domains
+              over the last 30 days.
+            </div>
+            <div>
+              These are visitors who clicked through from Google search
+              results — a subset of total sessions.
+            </div>
+          </div>
+        }
         value={formatNumber(data.totalClicks)}
         trend={
           <TrendChip
@@ -84,6 +108,18 @@ export function KpiStrip({ data }: { data: KpiData }) {
       />
       <KpiTile
         label="Avg Position"
+        labelTooltip={
+          <div className="space-y-1">
+            <div>
+              Average Google search rank across all your domains, weighted by
+              impressions so high-traffic sites count more than tiny ones.
+            </div>
+            <div>
+              Formula: <code>Σ(position × impressions) / Σ(impressions)</code>
+              .
+            </div>
+          </div>
+        }
         value={data.avgPosition !== null ? data.avgPosition.toFixed(1) : "—"}
         trend={
           <Hint
@@ -120,6 +156,18 @@ export function KpiStrip({ data }: { data: KpiData }) {
       />
       <KpiTile
         label="Healthy Domains"
+        labelTooltip={
+          <div className="space-y-1">
+            <div>
+              How many of your tracked domains are in good shape right now —
+              all sources linked, recent successful sync, no active issues.
+            </div>
+            <div>
+              The status dot on each card explains exactly why a domain is
+              amber or red. Hover the dot to see.
+            </div>
+          </div>
+        }
         value={`${data.healthy} of ${data.total}`}
         trend={
           (data.amber + data.red) > 0 ? (
@@ -140,20 +188,30 @@ export function KpiStrip({ data }: { data: KpiData }) {
 
 function KpiTile({
   label,
+  labelTooltip,
   value,
   trend,
   spark,
 }: {
   label: string
+  labelTooltip?: React.ReactNode
   value: string
   trend: React.ReactNode
   spark: React.ReactNode
 }) {
   return (
     <div className="rounded-md border bg-card p-3">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
+      {labelTooltip ? (
+        <Hint text={labelTooltip} className="inline-flex">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
+            {label}
+          </div>
+        </Hint>
+      ) : (
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+          {label}
+        </div>
+      )}
       <div className="flex items-baseline justify-between gap-2 mt-1">
         <div className="text-2xl font-semibold tabular-nums">{value}</div>
         <div className="shrink-0">{trend}</div>

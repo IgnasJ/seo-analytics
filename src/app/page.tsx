@@ -21,6 +21,7 @@ import {
   sumDaily,
   weightedAvgPosition,
 } from "@/lib/seo/aggregates"
+import { Hint } from "@/components/ui/hint"
 import Link from "next/link"
 import type { AnalyticsReport } from "@/types/analytics"
 import type { GscReport, IssuesReport } from "@/types/search-console"
@@ -175,7 +176,12 @@ export default function DashboardPage() {
           {grouped.map(({ category, cards }) => (
             <section key={category.id}>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                {category.name}{" "}
+                <Hint
+                  text={`Domains tagged "${category.name}". Manage categories on the Domains page.`}
+                  className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-4"
+                >
+                  {category.name}
+                </Hint>{" "}
                 <span className="text-xs font-normal normal-case">
                   ({cards.length})
                 </span>

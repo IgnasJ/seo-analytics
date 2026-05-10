@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { LayoutGrid, BarChart3 } from "lucide-react"
+import { Hint } from "@/components/ui/hint"
 
 const STORAGE_KEY = "dashboard-view-mode"
 type Mode = "cards" | "cards+kpi"
@@ -41,32 +42,36 @@ export function ViewToggle({ defaultMode = "cards" }: Props) {
 
   return (
     <div className="inline-flex rounded-md border bg-background p-0.5 text-xs">
-      <button
-        type="button"
-        onClick={() => setMode("cards")}
-        aria-pressed={mode === "cards"}
-        className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
-          mode === "cards"
-            ? "bg-accent text-accent-foreground font-medium"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        <LayoutGrid className="w-3 h-3" />
-        Cards
-      </button>
-      <button
-        type="button"
-        onClick={() => setMode("cards+kpi")}
-        aria-pressed={mode === "cards+kpi"}
-        className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
-          mode === "cards+kpi"
-            ? "bg-accent text-accent-foreground font-medium"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        <BarChart3 className="w-3 h-3" />
-        + KPI
-      </button>
+      <Hint text="Per-domain cards only. Default view.">
+        <button
+          type="button"
+          onClick={() => setMode("cards")}
+          aria-pressed={mode === "cards"}
+          className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
+            mode === "cards"
+              ? "bg-accent text-accent-foreground font-medium"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <LayoutGrid className="w-3 h-3" />
+          Cards
+        </button>
+      </Hint>
+      <Hint text="Adds an aggregate KPI strip across the top: total sessions, total clicks, weighted avg position, and healthy-domain count.">
+        <button
+          type="button"
+          onClick={() => setMode("cards+kpi")}
+          aria-pressed={mode === "cards+kpi"}
+          className={`flex items-center gap-1 px-2 py-1 rounded-sm transition-colors ${
+            mode === "cards+kpi"
+              ? "bg-accent text-accent-foreground font-medium"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <BarChart3 className="w-3 h-3" />
+          + KPI
+        </button>
+      </Hint>
     </div>
   )
 }
