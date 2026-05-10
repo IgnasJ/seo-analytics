@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { formatInteger } from "@/lib/format"
 
 const SEGMENT_PALETTE = [
@@ -44,6 +45,17 @@ interface Props {
  * category renders in the same colour across every row.
  */
 export function ShareBarChart({ rows, topN = 6, segmentOrder }: Props) {
+  // Click-hide on legend chips. Local state — same scope rationale as the
+  // recharts charts: per-chart visual flick, not a shareable filter.
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set())
+  const toggle = (name: string) =>
+    setHidden((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+
   if (rows.length === 0) {
     return (
       <div className="text-sm text-muted-foreground py-8 text-center">
@@ -63,10 +75,18 @@ export function ShareBarChart({ rows, topN = 6, segmentOrder }: Props) {
     return SEGMENT_PALETTE[i % (SEGMENT_PALETTE.length - 1)]
   }
 
+  // Filter out hidden segments before rendering each row's bar — the
+  // remaining segments still normalise to 100% of the visible total so the
+  // shape of the comparison stays meaningful.
+  const visibleRows = cappedRows.map((r) => ({
+    label: r.label,
+    segments: r.segments.filter((s) => !hidden.has(s.name)),
+  }))
+
   return (
     <div className="space-y-2">
       <div className="space-y-1.5">
-        {cappedRows.map((row) => {
+        {visibleRows.map((row) => {
           const total = row.segments.reduce((s, x) => s + x.value, 0) || 1
           return (
             <div
@@ -97,18 +117,31 @@ export function ShareBarChart({ rows, topN = 6, segmentOrder }: Props) {
         })}
       </div>
 
-      {/* Legend along the bottom: one chip per distinct segment name across
-          all rows, ordered for readability. */}
+      {/* Legend along the bottom: one clickable chip per distinct segment
+          name. Click a chip to hide that segment from every row's bar.
+          Hidden chips render strike-through + dimmed; click again to bring
+          them back. */}
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground pt-2 border-t">
-        {allNames.map((name) => (
-          <span key={name} className="inline-flex items-center gap-1.5">
-            <span
-              className="inline-block w-2 h-2 rounded-sm"
-              style={{ backgroundColor: colourFor(name) }}
-            />
-            {name}
-          </span>
-        ))}
+        {allNames.map((name) => {
+          const off = hidden.has(name)
+          return (
+            <button
+              key={name}
+              type="button"
+              onClick={() => toggle(name)}
+              aria-pressed={off}
+              className={`inline-flex items-center gap-1.5 cursor-pointer transition-opacity hover:text-foreground ${
+                off ? "opacity-40 line-through" : ""
+              }`}
+            >
+              <span
+                className="inline-block w-2 h-2 rounded-sm"
+                style={{ backgroundColor: colourFor(name) }}
+              />
+              {name}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

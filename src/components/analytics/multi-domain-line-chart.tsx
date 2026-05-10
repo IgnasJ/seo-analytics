@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import {
   LineChart,
   Line,
@@ -13,6 +12,7 @@ import {
 } from "recharts"
 import { domainColour } from "./domain-colour"
 import { formatInteger } from "@/lib/format"
+import { useLegendVisibility } from "./use-legend-visibility"
 
 export interface DomainSeries {
   domainId: number
@@ -44,18 +44,8 @@ interface Props {
  *   internal scroll if there are too many to fit at once.
  */
 export function MultiDomainLineChart({ series, dateKeys, height = 260 }: Props) {
-  const [hoveredDomain, setHoveredDomain] = useState<string | null>(null)
-  // Domains the user has clicked-off via the legend. Lines for hidden
-  // domains drop from the chart entirely (different from "muted" — the
-  // line and its tooltip values vanish). Legend pills for hidden domains
-  // render with reduced opacity so the user sees what's hidden and can
-  // click again to bring them back. State is local — not URL-bound,
-  // because legend hide is a per-chart visual flick rather than a
-  // shareable filter (the leaderboard's eye toggle exists for the
-  // shareable case).
-  const [hiddenDomains, setHiddenDomains] = useState<Set<string>>(
-    () => new Set()
-  )
+  const { isHidden, hovered, setHovered, toggle, legendFormatter } =
+    useLegendVisibility()
 
   if (series.length === 0 || dateKeys.length === 0) {
     return (
@@ -63,15 +53,6 @@ export function MultiDomainLineChart({ series, dateKeys, height = 260 }: Props) 
         No data to chart yet.
       </div>
     )
-  }
-
-  function toggleHidden(name: string): void {
-    setHiddenDomains((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
-      return next
-    })
   }
 
   // Pivot to per-date rows for recharts.
@@ -98,33 +79,19 @@ export function MultiDomainLineChart({ series, dateKeys, height = 260 }: Props) 
           wrapperStyle={{ fontSize: "11px", paddingTop: 8, cursor: "pointer" }}
           onMouseEnter={(payload) => {
             const name = (payload as { dataKey?: string })?.dataKey
-            if (typeof name === "string") setHoveredDomain(name)
+            if (typeof name === "string") setHovered(name)
           }}
-          onMouseLeave={() => setHoveredDomain(null)}
+          onMouseLeave={() => setHovered(null)}
           onClick={(payload) => {
             const name = (payload as { dataKey?: string })?.dataKey
-            if (typeof name === "string") toggleHidden(name)
+            if (typeof name === "string") toggle(name)
           }}
-          // Render hidden domains with reduced opacity in the legend so the
-          // user can see what's hidden and click again to restore.
-          formatter={(value: string, _entry: unknown) => {
-            const isHidden = hiddenDomains.has(value)
-            return (
-              <span
-                style={{
-                  textDecoration: isHidden ? "line-through" : "none",
-                  opacity: isHidden ? 0.4 : 1,
-                }}
-              >
-                {value}
-              </span>
-            )
-          }}
+          formatter={legendFormatter}
         />
         {series.map((s) => {
-          const isHidden = hiddenDomains.has(s.hostname)
-          const isHovered = hoveredDomain === s.hostname
-          const isOtherHovered = hoveredDomain !== null && !isHovered
+          const off = isHidden(s.hostname)
+          const isHovered = hovered === s.hostname
+          const isOtherHovered = hovered !== null && !isHovered
           return (
             <Line
               key={s.domainId}
@@ -137,7 +104,7 @@ export function MultiDomainLineChart({ series, dateKeys, height = 260 }: Props) 
               activeDot={{ r: isHovered ? 5 : 3 }}
               name={s.hostname}
               isAnimationActive={false}
-              hide={isHidden}
+              hide={off}
             />
           )
         })}

@@ -11,12 +11,28 @@ import {
   Legend,
 } from "recharts"
 import type { DailyGscRow } from "@/types/search-console"
+import { useLegendVisibility } from "@/components/analytics/use-legend-visibility"
+import { formatInteger } from "@/lib/format"
+
+const SERIES = [
+  { key: "clicks", label: "Clicks", colour: "var(--primary)", axis: "left" as const },
+  {
+    key: "impressions",
+    label: "Impressions",
+    colour: "var(--muted-foreground)",
+    axis: "right" as const,
+  },
+] as const
 
 export function GscChart({ data }: { data: DailyGscRow[] }) {
+  const { isHidden, hovered, setHovered, toggle, legendFormatter } =
+    useLegendVisibility()
+
   const formatted = data.map((d) => ({
     ...d,
     date: `${d.date.slice(5, 7)}/${d.date.slice(8, 10)}`,
   }))
+
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={formatted}>
@@ -24,27 +40,80 @@ export function GscChart({ data }: { data: DailyGscRow[] }) {
         <XAxis dataKey="date" tick={{ fontSize: 11 }} />
         <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-        <Tooltip />
-        <Legend />
-        <Line
-          yAxisId="left"
-          type="monotone"
-          dataKey="clicks"
-          stroke="var(--primary)"
-          strokeWidth={2}
-          dot={false}
-          name="Clicks"
+        <Tooltip content={<DualTooltip />} />
+        <Legend
+          wrapperStyle={{ fontSize: "11px", paddingTop: 8, cursor: "pointer" }}
+          onMouseEnter={(payload) => {
+            const name = (payload as { dataKey?: string })?.dataKey
+            if (typeof name === "string") setHovered(name)
+          }}
+          onMouseLeave={() => setHovered(null)}
+          onClick={(payload) => {
+            const name = (payload as { dataKey?: string })?.dataKey
+            if (typeof name === "string") toggle(name)
+          }}
+          formatter={legendFormatter}
         />
-        <Line
-          yAxisId="right"
-          type="monotone"
-          dataKey="impressions"
-          stroke="var(--muted-foreground)"
-          strokeWidth={1.5}
-          dot={false}
-          name="Impressions"
-        />
+        {SERIES.map((s) => {
+          const isOff = isHidden(s.key)
+          const isHovered = hovered === s.key
+          const isOtherHovered = hovered !== null && !isHovered
+          return (
+            <Line
+              key={s.key}
+              yAxisId={s.axis}
+              type="monotone"
+              dataKey={s.key}
+              stroke={s.colour}
+              strokeWidth={isHovered ? 2.6 : 1.8}
+              strokeOpacity={isOtherHovered ? 0.18 : 1}
+              dot={false}
+              activeDot={{ r: isHovered ? 5 : 3 }}
+              name={s.label}
+              isAnimationActive={false}
+              hide={isOff}
+            />
+          )
+        })}
       </LineChart>
     </ResponsiveContainer>
+  )
+}
+
+function DualTooltip({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean
+  label?: string
+  payload?: { name?: string; value?: number; color?: string }[]
+}) {
+  if (!active || !payload || payload.length === 0) return null
+  const rows = payload.filter((p) => typeof p.value === "number")
+  if (rows.length === 0) return null
+  return (
+    <div className="rounded-md border bg-background px-3 py-2 shadow-md text-xs">
+      <div className="font-medium mb-1.5">{label}</div>
+      <ul className="space-y-1">
+        {rows.map((p) => (
+          <li
+            key={p.name ?? "?"}
+            className="flex items-center justify-between gap-4"
+          >
+            <span className="flex items-center gap-1.5">
+              <span
+                className="inline-block w-2 h-2 rounded-sm"
+                style={{ backgroundColor: p.color }}
+              />
+              {p.name}
+            </span>
+            <span className="font-mono tabular-nums">
+              {formatInteger(p.value ?? 0)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
