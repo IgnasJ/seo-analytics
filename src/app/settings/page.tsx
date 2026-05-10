@@ -9,6 +9,7 @@ import { listDomains } from "@/lib/db/queries/domains"
 import { getApiUsageStats } from "@/lib/db/queries/api-usage"
 import { SyncAllButton } from "@/components/sync-all-button"
 import { SyncHistoryDisclosure } from "@/components/sync-history-disclosure"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export const dynamic = "force-dynamic"
 
@@ -75,6 +76,20 @@ export default function SettingsPage() {
                 : "Connect Google account"}
             </Button>
           </a>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Appearance</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Theme applies immediately and is saved per browser. &ldquo;System&rdquo;
+            follows your operating system&apos;s light/dark preference and
+            updates automatically when it changes.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ThemeToggle />
         </CardContent>
       </Card>
 

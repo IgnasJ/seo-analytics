@@ -12,9 +12,30 @@ export const metadata: Metadata = {
   description: "Personal SEO analytics dashboard",
 }
 
+/**
+ * Inline script that reads the saved theme preference and applies it to
+ * <html> *before* React hydrates. Without this, the page paints in the
+ * default light theme for a frame or two before the ThemeToggle's effect
+ * fires — a visible flash. Mirrors the same logic in
+ * src/components/theme-toggle.tsx so both stay in sync.
+ */
+const themeBootstrap = `
+(function () {
+  try {
+    var saved = localStorage.getItem('theme') || 'system';
+    var dark = saved === 'dark' ||
+      (saved === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (dark) document.documentElement.classList.add('dark');
+  } catch (e) {}
+})();
+`
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body className={inter.className}>
         <TooltipProvider delay={0}>
           <StartupSync />
