@@ -74,14 +74,9 @@ export default async function DomainPage({
           <h1 className="text-xl font-semibold">{domain.hostname}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {syncAgo !== null ? `Last synced ${syncAgo}h ago` : "Never synced"}
-            {" · "}showing {RANGE_LABEL[range]}
           </p>
         </div>
         <SyncButton domainId={domain.id} />
-      </div>
-
-      <div className="mb-4">
-        <DateRangePickerLink selected={range} />
       </div>
 
       <Tabs defaultValue="analytics">
@@ -93,6 +88,7 @@ export default async function DomainPage({
         </TabsList>
 
         <TabsContent value="analytics" className="space-y-4">
+          <RangeBar range={range} />
           {analytics ? (
             <>
               <MetricsOverview data={analytics.overview} />
@@ -132,6 +128,7 @@ export default async function DomainPage({
         </TabsContent>
 
         <TabsContent value="search-console" className="space-y-4">
+          <RangeBar range={range} />
           {gsc ? (
             <>
               <GscOverview data={gsc.overview} />
@@ -180,6 +177,24 @@ export default async function DomainPage({
           <OpportunitiesTab data={opportunities} />
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+/**
+ * Date-range picker plus a small "showing the last 30 days" caption.
+ * Rendered only inside tabs whose data is range-bound (Analytics, Search
+ * Console). The Issues and Opportunities tabs use range-independent data
+ * (CrUX field metrics, sitemap status) or a fixed lookback, so the picker
+ * doesn't belong there.
+ */
+function RangeBar({ range }: { range: DateRangeKey }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-1">
+      <DateRangePickerLink selected={range} />
+      <span className="text-xs text-muted-foreground">
+        showing {RANGE_LABEL[range]}
+      </span>
     </div>
   )
 }
