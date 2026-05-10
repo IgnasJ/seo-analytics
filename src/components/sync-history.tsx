@@ -4,13 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  RefreshCw,
-} from "lucide-react"
+import { RefreshCw } from "lucide-react"
+import { PageNav } from "@/components/ui/page-nav"
 
 interface SyncLogEntry {
   id: number
@@ -140,47 +135,12 @@ export function SyncHistory() {
               Showing <strong>{start}</strong>–<strong>{end}</strong> of{" "}
               <strong>{total}</strong>
             </span>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPage(1)}
-                disabled={page <= 1 || loading}
-                aria-label="First page"
-              >
-                <ChevronsLeft className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || loading}
-                aria-label="Previous page"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </Button>
-              <span className="px-2">
-                Page {data.page} of {totalPages}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages || loading}
-                aria-label="Next page"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPage(totalPages)}
-                disabled={page >= totalPages || loading}
-                aria-label="Last page"
-              >
-                <ChevronsRight className="w-3.5 h-3.5" />
-              </Button>
-            </div>
+            <PageNav
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              disabled={loading}
+            />
           </div>
         )}
       </CardContent>
