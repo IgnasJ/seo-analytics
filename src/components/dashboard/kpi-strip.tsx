@@ -3,6 +3,7 @@
 import { Sparkline } from "./sparkline"
 import { TrendChip } from "./trend-chip"
 import { TrendingUp } from "lucide-react"
+import { Hint } from "@/components/ui/hint"
 
 export interface KpiData {
   totalSessions: number
@@ -85,13 +86,30 @@ export function KpiStrip({ data }: { data: KpiData }) {
         label="Avg Position"
         value={data.avgPosition !== null ? data.avgPosition.toFixed(1) : "—"}
         trend={
-          <TrendChip
-            current={data.avgPosition}
-            previous={data.avgPositionPrior}
-            lowerIsBetter
-            format="absolute"
-            decimals={1}
-          />
+          <Hint
+            text={
+              <div className="space-y-1">
+                <div>
+                  Average Google search rank, weighted by impressions across
+                  all your domains.
+                </div>
+                <div>
+                  <strong>Lower is better.</strong> Green ↓ means rank improved
+                  (number decreased); red ↑ means rank slipped.
+                </div>
+                <div>30-day vs 7-day comparison.</div>
+              </div>
+            }
+            className="cursor-help"
+          >
+            <TrendChip
+              current={data.avgPosition}
+              previous={data.avgPositionPrior}
+              lowerIsBetter
+              format="absolute"
+              decimals={1}
+            />
+          </Hint>
         }
         spark={
           <span className="text-xs text-muted-foreground inline-flex items-center gap-1">

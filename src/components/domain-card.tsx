@@ -3,6 +3,7 @@ import { Sparkline } from "@/components/dashboard/sparkline"
 import { TrendChip } from "@/components/dashboard/trend-chip"
 import { StatusDot } from "@/components/dashboard/status-dot"
 import { SyncIcon } from "@/components/dashboard/sync-icon"
+import { Hint } from "@/components/ui/hint"
 import { cardHealth, type Severity } from "@/lib/seo/health"
 
 export interface DomainCardProps {
@@ -92,26 +93,61 @@ export function DomainCard(props: DomainCardProps) {
         {/* Three metric rows: number left, sparkline / trend chip right */}
         <div className="space-y-1">
           <MetricRow
-            label="sess"
+            label="sessions"
             value={formatNumber(sessions)}
-            spark={<Sparkline values={dailySessions} className="text-blue-500" ariaLabel={`Sessions trend`} />}
+            spark={
+              <Sparkline
+                values={dailySessions}
+                className="text-blue-500"
+                ariaLabel="Sessions trend"
+              />
+            }
           />
           <MetricRow
-            label="clk"
+            label="clicks"
             value={formatNumber(clicks)}
-            spark={<Sparkline values={dailyClicks} className="text-emerald-500" ariaLabel={`Clicks trend`} />}
+            spark={
+              <Sparkline
+                values={dailyClicks}
+                className="text-emerald-500"
+                ariaLabel="Clicks trend"
+              />
+            }
           />
           <MetricRow
-            label="pos"
+            label="position"
             value={position1m !== null ? position1m.toFixed(1) : "—"}
             spark={
-              <TrendChip
-                current={position1m}
-                previous={position7d}
-                lowerIsBetter
-                format="absolute"
-                decimals={1}
-              />
+              <Hint
+                text={
+                  <div className="space-y-1">
+                    <div>
+                      <strong>Position</strong> is the average rank of this site
+                      across Google search results in the selected period.
+                    </div>
+                    <div>
+                      <strong>Lower is better</strong> — position 3 means rank
+                      #3 (top of page 1); position 18 is bottom of page 2.
+                    </div>
+                    <div>
+                      The chip compares the last 30 days vs the last 7 days.
+                      Green ↓ means rank improved (number went down); red ↑
+                      means rank slipped.
+                    </div>
+                  </div>
+                }
+                className="inline-flex"
+              >
+                <span className="cursor-help">
+                  <TrendChip
+                    current={position1m}
+                    previous={position7d}
+                    lowerIsBetter
+                    format="absolute"
+                    decimals={1}
+                  />
+                </span>
+              </Hint>
             }
           />
         </div>
@@ -131,9 +167,9 @@ function MetricRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2 text-sm">
-      <span className="font-mono">
-        <span className="font-semibold tabular-nums">{value}</span>
-        <span className="ml-1 text-xs text-muted-foreground">{label}</span>
+      <span className="min-w-0">
+        <span className="font-semibold font-mono tabular-nums">{value}</span>
+        <span className="ml-1.5 text-xs text-muted-foreground">{label}</span>
       </span>
       <span className="shrink-0">{spark}</span>
     </div>
