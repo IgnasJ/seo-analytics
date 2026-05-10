@@ -259,8 +259,24 @@ export default function DomainsPage() {
             </span>
           </button>
         </CardHeader>
-        {categoriesOpen && (
         <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              className="flex-1 border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="New category name"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && createCategory()}
+            />
+            <Button size="sm" onClick={createCategory} disabled={creatingCategory}>
+              <Plus className="w-3 h-3 mr-1" />
+              Add
+            </Button>
+          </div>
+          {categoryError && (
+            <p className="text-xs text-destructive">{categoryError}</p>
+          )}
+          {categoriesOpen && (
           <div className="space-y-1">
             {categories.map((c) => (
               <div
@@ -355,24 +371,8 @@ export default function DomainsPage() {
               </div>
             ))}
           </div>
-          <div className="flex gap-2">
-            <input
-              className="flex-1 border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="New category name"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createCategory()}
-            />
-            <Button size="sm" onClick={createCategory} disabled={creatingCategory}>
-              <Plus className="w-3 h-3 mr-1" />
-              Add
-            </Button>
-          </div>
-          {categoryError && (
-            <p className="text-xs text-destructive">{categoryError}</p>
           )}
         </CardContent>
-        )}
       </Card>
 
       <Card>
@@ -395,7 +395,6 @@ export default function DomainsPage() {
             </span>
           </button>
         </CardHeader>
-        {domainsOpen && (
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <input
@@ -412,6 +411,7 @@ export default function DomainsPage() {
           </div>
           {addError && <p className="text-xs text-destructive">{addError}</p>}
 
+          {domainsOpen && (
           <div className="space-y-2">
             {domains.map((domain) => (
               <div key={domain.id} className="border rounded-md p-3 space-y-2">
@@ -537,8 +537,8 @@ export default function DomainsPage() {
               </div>
             ))}
           </div>
+          )}
         </CardContent>
-        )}
       </Card>
     </div>
   )
