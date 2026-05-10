@@ -4,7 +4,16 @@ import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Trash2, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronRight } from "lucide-react"
+import {
+  Search,
+  Trash2,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  ChevronDown,
+  ChevronRight,
+  RotateCcw,
+} from "lucide-react"
 import { LighthouseGauges } from "@/components/audit/lighthouse-gauges"
 import { AuditDetail } from "@/components/audit/audit-detail"
 import type { Audit, AuditResult } from "@/types/audit"
@@ -99,6 +108,29 @@ export default function AuditPage() {
     if (!confirm("Delete this audit?")) return
     await fetch(`/api/audit/${id}`, { method: "DELETE" })
     loadAudits()
+  }
+
+  /**
+   * Re-run a failed audit. We don't mutate the failed row; instead we POST a
+   * new audit for the same URL so the failure stays as history and the
+   * retry surfaces as a fresh "pending" entry at the top of the list.
+   */
+  async function retryAudit(targetUrl: string) {
+    try {
+      const res = await fetch("/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: targetUrl }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        alert(body.error ?? `Retry failed (${res.status})`)
+        return
+      }
+      loadAudits()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Network error")
+    }
   }
 
   async function submitBatch() {
@@ -227,6 +259,7 @@ export default function AuditPage() {
                   detail={details[a.id]}
                   onToggle={() => toggleExpand(a)}
                   onDelete={() => deleteAudit(a.id)}
+                  onRetry={() => retryAudit(a.url)}
                 />
               ))}
             </ul>
@@ -298,12 +331,14 @@ function AuditRow({
   detail,
   onToggle,
   onDelete,
+  onRetry,
 }: {
   audit: Audit
   expanded: boolean
   detail: DetailResponse | undefined
   onToggle: () => void
   onDelete: () => void
+  onRetry: () => void
 }) {
   const ts = new Date(audit.requested_at * 1000).toLocaleString()
   const result =
@@ -340,11 +375,23 @@ function AuditRow({
           <span className="text-xs text-muted-foreground hidden md:inline">
             {ts}
           </span>
+          {audit.status === "error" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRetry}
+              aria-label="Retry audit"
+              title="Retry audit"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive"
             onClick={onDelete}
+            aria-label="Delete audit"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
@@ -354,8 +401,14 @@ function AuditRow({
       {expanded && (
         <div className="border-t p-3 space-y-4 bg-muted/30">
           {audit.status === "error" && (
-            <div className="text-sm text-red-600">
-              Audit failed: {audit.error_message ?? "unknown error"}
+            <div className="space-y-2">
+              <p className="text-sm text-red-600">
+                Audit failed: {audit.error_message ?? "unknown error"}
+              </p>
+              <Button size="sm" variant="outline" onClick={onRetry}>
+                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                Retry
+              </Button>
             </div>
           )}
           {(audit.status === "pending" || audit.status === "running") && (
