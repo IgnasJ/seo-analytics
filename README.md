@@ -4,6 +4,7 @@ Personal dashboard for Google Analytics 4 and Google Search Console data, with a
 
 ## Features
 
+- **Cross-domain Analytics page.** Side-by-side comparison view at `/analytics`: three multi-line trend charts (Sessions / Clicks / Impressions) with one coloured line per domain, a sortable leaderboard table, and three horizontal stacked-bar breakdowns (Channels / Countries / Devices). Same category chips and date range picker as the rest of the app — URL-bound state so views are shareable across reloads.
 - **Grafana-style multi-domain dashboard.** Track an unlimited number of domains organised into user-defined categories. Dense card grid (4–5 cards per row on desktop) with inline sparklines for Sessions and Clicks, an inline trend chip for Avg Position, status dots and coloured left borders that surface unhealthy domains at a glance, and a top-right sync icon (hover for last-sync time, click to sync now). Toggle to **+ KPI** mode to overlay an aggregate strip across all domains: Total Sessions, Total Clicks, impression-weighted Avg Position, and "Healthy X of N" — all sparkline-able and persisted via localStorage.
 - **GA4:** sessions, users, pageviews, bounce rate, channel breakdown, top pages.
 - **GSC:** clicks, impressions, CTR, average position, daily trend chart, keyword position distribution.
