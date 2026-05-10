@@ -375,7 +375,12 @@ export default function DomainsPage() {
                       }
                     >
                       <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
+                        <SelectValue>
+                          {(value: string) =>
+                            categories.find((c) => String(c.id) === value)
+                              ?.name ?? "—"
+                          }
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((c) => (
