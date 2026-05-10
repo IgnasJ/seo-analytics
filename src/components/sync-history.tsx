@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RefreshCw } from "lucide-react"
@@ -67,30 +66,25 @@ export function SyncHistory() {
   const end = data ? Math.min(data.page * data.pageSize, data.total) : 0
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <CardTitle className="text-sm">Sync history</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Each row is one full sync run for a domain (all date ranges
-              fetched in one pass).
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => load(page)}
-            disabled={loading}
-            aria-label="Refresh sync history"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
-            />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Each row is one full sync run for a domain (all date ranges fetched
+          in one pass).
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => load(page)}
+          disabled={loading}
+          aria-label="Refresh sync history"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+          />
+        </Button>
+      </div>
+      <div>
         {error && <p className="text-xs text-destructive mb-2">{error}</p>}
         {data && data.entries.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">
@@ -146,8 +140,8 @@ export function SyncHistory() {
             />
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 

@@ -8,6 +8,7 @@ import { getToken } from "@/lib/db/queries/tokens"
 import { listDomains } from "@/lib/db/queries/domains"
 import { getApiUsageStats } from "@/lib/db/queries/api-usage"
 import { SyncAllButton } from "@/components/sync-all-button"
+import { SyncHistoryDisclosure } from "@/components/sync-history-disclosure"
 
 export const dynamic = "force-dynamic"
 
@@ -87,8 +88,9 @@ export default function SettingsPage() {
               ranges sequentially; expect ~5–15 seconds per domain.
             </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <SyncAllButton />
+            <SyncHistoryDisclosure />
           </CardContent>
         </Card>
       )}
