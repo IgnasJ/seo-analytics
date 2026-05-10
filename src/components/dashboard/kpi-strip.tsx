@@ -2,7 +2,6 @@
 
 import { Sparkline } from "./sparkline"
 import { TrendChip } from "./trend-chip"
-import { TrendingUp } from "lucide-react"
 import { Hint } from "@/components/ui/hint"
 import { formatCompact } from "@/lib/format"
 
@@ -39,7 +38,7 @@ export function KpiStrip({ data }: { data: KpiData }) {
       // Visibility controlled via the body[data-kpi="on"] selector in
       // globals.css. Hidden by default so SSR doesn't flash the strip
       // before the toggle has hydrated.
-      className="hidden grid-cols-2 lg:grid-cols-4 gap-3 mb-6"
+      className="hidden grid-cols-2 lg:grid-cols-4 gap-2 mb-4"
       data-slot="kpi-strip"
     >
       <KpiTile
@@ -71,8 +70,8 @@ export function KpiStrip({ data }: { data: KpiData }) {
         spark={
           <Sparkline
             values={data.dailySessions}
-            width={140}
-            height={28}
+            width={120}
+            height={20}
             className="text-blue-500"
             ariaLabel="Total sessions trend"
           />
@@ -107,8 +106,8 @@ export function KpiStrip({ data }: { data: KpiData }) {
         spark={
           <Sparkline
             values={data.dailyClicks}
-            width={140}
-            height={28}
+            width={120}
+            height={20}
             className="text-emerald-500"
             ariaLabel="Total clicks trend"
           />
@@ -157,12 +156,7 @@ export function KpiStrip({ data }: { data: KpiData }) {
             />
           </Hint>
         }
-        spark={
-          <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" />
-            impression-weighted
-          </span>
-        }
+        spark={null}
       />
       <KpiTile
         label="Healthy Domains"
@@ -178,11 +172,11 @@ export function KpiStrip({ data }: { data: KpiData }) {
             </div>
           </div>
         }
-        value={`${data.healthy} of ${data.total}`}
+        value={`${data.healthy}/${data.total}`}
         trend={
           (data.amber + data.red) > 0 ? (
-            <span className="text-xs text-muted-foreground">
-              {data.red > 0 && `${data.red} critical`}
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {data.red > 0 && `${data.red} crit`}
               {data.red > 0 && data.amber > 0 && ", "}
               {data.amber > 0 && `${data.amber} warn`}
             </span>
@@ -210,23 +204,30 @@ function KpiTile({
   spark: React.ReactNode
 }) {
   return (
-    <div className="rounded-md border bg-card p-3">
+    <div className="rounded-md border bg-card px-2.5 py-2">
       {labelTooltip ? (
         <Hint text={labelTooltip} className="inline-flex">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
             {label}
           </div>
         </Hint>
       ) : (
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
           {label}
         </div>
       )}
-      <div className="flex items-baseline justify-between gap-2 mt-1">
-        <div className="text-2xl font-semibold tabular-nums">{value}</div>
+      <div className="flex items-baseline justify-between gap-2 mt-0.5">
+        <div className="text-lg font-semibold tabular-nums leading-tight">
+          {value}
+        </div>
         <div className="shrink-0">{trend}</div>
       </div>
-      <div className="mt-2 h-7 flex items-center">{spark}</div>
+      {/* Only render the sparkline row when a sparkline is supplied — tiles
+          without one (Avg Position, Healthy Domains) lose the empty bottom
+          strip and get noticeably shorter. */}
+      {spark && (
+        <div className="mt-1 h-5 flex items-center">{spark}</div>
+      )}
     </div>
   )
 }
