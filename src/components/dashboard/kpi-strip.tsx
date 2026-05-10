@@ -203,31 +203,27 @@ function KpiTile({
   trend: React.ReactNode
   spark: React.ReactNode
 }) {
+  // Inline layout: label, value, trend, and (optional) sparkline all sit on
+  // one row. Label is fixed-width small caps on the left; value + trend
+  // group together; sparkline pushes itself to the far right via ml-auto.
   return (
-    <div className="rounded-md border bg-card px-2.5 py-2">
+    <div className="rounded-md border bg-card px-2.5 py-2 flex items-center gap-2 min-w-0">
       {labelTooltip ? (
-        <Hint text={labelTooltip} className="inline-flex">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
+        <Hint text={labelTooltip} className="inline-flex shrink-0">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
             {label}
-          </div>
+          </span>
         </Hint>
       ) : (
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
           {label}
-        </div>
+        </span>
       )}
-      <div className="flex items-baseline justify-between gap-2 mt-0.5">
-        <div className="text-lg font-semibold tabular-nums leading-tight">
-          {value}
-        </div>
-        <div className="shrink-0">{trend}</div>
-      </div>
-      {/* Only render the sparkline row when a sparkline is supplied — tiles
-          without one (Avg Position, Healthy Domains) lose the empty bottom
-          strip and get noticeably shorter. */}
-      {spark && (
-        <div className="mt-1 h-5 flex items-center">{spark}</div>
-      )}
+      <span className="text-base font-semibold tabular-nums leading-tight shrink-0">
+        {value}
+      </span>
+      <span className="shrink-0">{trend}</span>
+      {spark && <span className="ml-auto shrink-0">{spark}</span>}
     </div>
   )
 }
