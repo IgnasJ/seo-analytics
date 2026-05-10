@@ -3,7 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
 import type { CountryRow } from "@/types/analytics"
 
-const TOP_N = 10
+const TOP_N = 5
 
 export function CountryChart({ data }: { data: CountryRow[] }) {
   // Take the top 10 by sessions; the rest of the list (long-tail countries)
