@@ -23,6 +23,8 @@ interface CardData {
   avgPosition: number | null
   issueCount: number
   lastSyncedAt: number | null
+  ga4Linked: boolean
+  gscLinked: boolean
 }
 
 export default function DashboardPage() {
@@ -50,6 +52,8 @@ export default function DashboardPage() {
       avgPosition: gsc?.overview.avgPosition ?? null,
       issueCount,
       lastSyncedAt,
+      ga4Linked: Boolean(domain.ga4_property_id),
+      gscLinked: Boolean(domain.gsc_site_url),
     }
   })
 

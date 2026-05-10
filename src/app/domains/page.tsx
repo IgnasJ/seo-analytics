@@ -363,9 +363,11 @@ export default function DomainsPage() {
           <div className="space-y-2">
             {domains.map((domain) => (
               <div key={domain.id} className="border rounded-md p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">{domain.hostname}</span>
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="font-medium text-sm break-all">
+                    {domain.hostname}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
                     <Select
                       value={String(domain.category_id)}
                       onValueChange={(v) =>
@@ -389,7 +391,9 @@ export default function DomainsPage() {
                       onClick={() => discoverProperties(domain.id)}
                       disabled={discovering === domain.id}
                     >
-                      {discovering === domain.id ? "Discovering…" : "Discover properties"}
+                      {discovering === domain.id
+                        ? "Discovering…"
+                        : "Discover properties"}
                     </Button>
                     <Button
                       variant="ghost"

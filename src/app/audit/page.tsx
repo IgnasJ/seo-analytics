@@ -330,10 +330,16 @@ function AuditRow({
           )}
           <span className="text-sm font-medium truncate">{audit.url}</span>
         </button>
-        <div className="flex items-center gap-3 shrink-0">
-          {result && <ScorePills result={result} />}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {result && (
+            <div className="hidden sm:block">
+              <ScorePills result={result} />
+            </div>
+          )}
           <StatusBadge status={audit.status} />
-          <span className="text-xs text-muted-foreground hidden sm:inline">{ts}</span>
+          <span className="text-xs text-muted-foreground hidden md:inline">
+            {ts}
+          </span>
           <Button
             variant="ghost"
             size="sm"

@@ -16,9 +16,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={inter.className}>
         <StartupSync />
-        <div className="flex min-h-screen">
+        <div className="flex flex-col md:flex-row min-h-screen">
           <Sidebar />
-          <main className="flex-1 p-6 bg-muted/20">{children}</main>
+          <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 bg-muted/20">
+            {children}
+          </main>
         </div>
       </body>
     </html>

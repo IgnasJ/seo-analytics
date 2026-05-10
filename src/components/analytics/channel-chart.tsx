@@ -3,7 +3,13 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import type { ChannelRow } from "@/types/analytics"
 
-const COLORS = ["hsl(var(--primary))", "hsl(220 60% 60%)", "hsl(160 60% 50%)", "hsl(40 80% 55%)", "hsl(280 60% 60%)"]
+const COLORS = [
+  "var(--primary)",
+  "hsl(220 60% 60%)",
+  "hsl(160 60% 50%)",
+  "hsl(40 80% 55%)",
+  "hsl(280 60% 60%)",
+]
 
 export function ChannelChart({ data }: { data: ChannelRow[] }) {
   return (

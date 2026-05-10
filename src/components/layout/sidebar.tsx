@@ -2,7 +2,16 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart2, Settings, Globe, Layers, Search } from "lucide-react"
+import { useEffect, useState } from "react"
+import {
+  BarChart2,
+  Settings,
+  Globe,
+  Layers,
+  Search,
+  Menu,
+  X,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -14,34 +23,115 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Close the mobile drawer whenever the route changes.
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  // Lock body scroll while the drawer is open on mobile.
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    if (mobileOpen) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [mobileOpen])
+
+  const navList = (
+    <nav className="flex-1 px-2 py-3 space-y-1">
+      {navItems.map((item) => {
+        const Icon = item.icon
+        const active = pathname === item.href
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+              active
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            <Icon className="w-4 h-4" />
+            {item.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+
   return (
-    <aside className="w-56 min-h-screen border-r bg-background flex flex-col">
-      <div className="px-4 py-5 border-b">
-        <div className="flex items-center gap-2 font-semibold text-sm">
+    <>
+      {/* Mobile top bar - shown only on small screens */}
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between bg-background border-b px-3 py-2">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-sm">
           <Globe className="w-4 h-4" />
           SEO Dashboard
+        </Link>
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation menu"
+          className="p-1.5 rounded-md hover:bg-accent"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      </header>
+
+      {/* Desktop persistent sidebar */}
+      <aside className="hidden md:flex w-56 min-h-screen border-r bg-background flex-col shrink-0">
+        <div className="px-4 py-5 border-b">
+          <Link
+            href="/"
+            className="flex items-center gap-2 font-semibold text-sm hover:opacity-80 transition-opacity"
+          >
+            <Globe className="w-4 h-4" />
+            SEO Dashboard
+          </Link>
         </div>
-      </div>
-      <nav className="flex-1 px-2 py-3 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                pathname === item.href
-                  ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <Icon className="w-4 h-4" />
-              {item.label}
-            </Link>
-          )
-        })}
-      </nav>
-    </aside>
+        {navList}
+      </aside>
+
+      {/* Mobile drawer + backdrop */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/40"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+      <aside
+        className={cn(
+          "md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-background border-r shadow-lg flex flex-col transition-transform duration-200 ease-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        role="dialog"
+        aria-label="Navigation"
+        aria-hidden={!mobileOpen}
+      >
+        <div className="px-4 py-4 border-b flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-semibold text-sm">
+            <Globe className="w-4 h-4" />
+            SEO Dashboard
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation menu"
+            className="p-1.5 rounded-md hover:bg-accent"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {navList}
+      </aside>
+    </>
   )
 }

@@ -93,7 +93,7 @@ function CwvBar({ metric }: { metric: CwvMetric | null }) {
     )
   }
   return (
-    <div className="flex items-center gap-3 min-w-[260px]">
+    <div className="flex items-center gap-3 flex-1 min-w-[120px] sm:min-w-[200px]">
       <div className="flex h-2 rounded-full overflow-hidden flex-1">
         <div className="bg-green-500" style={{ width: `${metric.good}%` }} />
         <div
@@ -126,13 +126,13 @@ function CwvRow({ label, short, metric, insight, isOpen, onToggle }: CwvRowProps
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between gap-3 px-1 py-3 text-left hover:bg-muted/30"
+        className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-1 py-3 text-left hover:bg-muted/30"
       >
-        <span className="flex items-center gap-2 min-w-[180px]">
+        <span className="flex items-center gap-2 sm:min-w-[180px] shrink-0">
           {isOpen ? (
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
           )}
           <SeverityIcon severity={insight.severity} />
           <span className="text-sm font-medium">{short}</span>
