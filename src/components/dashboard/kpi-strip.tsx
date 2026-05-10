@@ -38,7 +38,7 @@ export function KpiStrip({ data }: { data: KpiData }) {
       // Visibility controlled via the body[data-kpi="on"] selector in
       // globals.css. Hidden by default so SSR doesn't flash the strip
       // before the toggle has hydrated.
-      className="hidden grid-cols-2 lg:grid-cols-4 gap-2 mb-4"
+      className="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-4"
       data-slot="kpi-strip"
     >
       <KpiTile
