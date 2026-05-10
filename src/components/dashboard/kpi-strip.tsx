@@ -173,20 +173,75 @@ export function KpiStrip({ data }: { data: KpiData }) {
           </div>
         }
         value={`${data.healthy}/${data.total}`}
-        trend={
-          (data.amber + data.red) > 0 ? (
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {data.red > 0 && `${data.red} crit`}
-              {data.red > 0 && data.amber > 0 && ", "}
-              {data.amber > 0 && `${data.amber} warn`}
-            </span>
-          ) : (
-            <span className="text-xs text-green-600">all clear</span>
-          )
-        }
+        trend={<HealthBreakdown {...data} />}
         spark={null}
       />
     </div>
+  )
+}
+
+/**
+ * Visual health breakdown — three colored pill indicators (green/amber/red)
+ * with counts. Same colour vocabulary as the per-card status dots so the
+ * KPI strip and the cards below it visually correspond. Zero-count buckets
+ * render dimmed instead of being hidden, so the layout stays consistent
+ * across reloads even as health shifts.
+ */
+function HealthBreakdown({
+  healthy,
+  amber,
+  red,
+}: {
+  healthy: number
+  amber: number
+  red: number
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <HealthPip
+        color="bg-green-500"
+        label="healthy"
+        count={healthy}
+        ariaLabel={`${healthy} healthy domains`}
+      />
+      <HealthPip
+        color="bg-amber-500"
+        label="warning"
+        count={amber}
+        ariaLabel={`${amber} domains with warnings`}
+      />
+      <HealthPip
+        color="bg-red-500"
+        label="critical"
+        count={red}
+        ariaLabel={`${red} critical domains`}
+      />
+    </span>
+  )
+}
+
+function HealthPip({
+  color,
+  label,
+  count,
+  ariaLabel,
+}: {
+  color: string
+  label: string
+  count: number
+  ariaLabel: string
+}) {
+  const dim = count === 0
+  return (
+    <Hint text={count === 0 ? `0 ${label}` : `${count} ${label}`}>
+      <span
+        className={`inline-flex items-center gap-1 ${dim ? "opacity-30" : ""}`}
+        aria-label={ariaLabel}
+      >
+        <span className={`inline-block w-2 h-2 rounded-full ${color}`} />
+        <span className="text-xs font-medium tabular-nums">{count}</span>
+      </span>
+    </Hint>
   )
 }
 
