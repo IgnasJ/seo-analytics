@@ -22,7 +22,7 @@ interface SyncLogPage {
   totalPages: number
 }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 export function SyncHistory() {
   const [data, setData] = useState<SyncLogPage | null>(null)
