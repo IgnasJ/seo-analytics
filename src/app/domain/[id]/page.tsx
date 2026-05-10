@@ -102,7 +102,7 @@ export default async function DomainPage({
           </TabsList>
         </div>
 
-        <TabsContent value="analytics" className="space-y-4">
+        <TabsContent value="analytics" className="space-y-3">
           <RangeBar range={range} />
           {analytics ? (
             <>
@@ -118,7 +118,7 @@ export default async function DomainPage({
                 </CardContent>
               </Card>
               {/* Three breakdowns share one row on lg+, stack on mobile. */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm">Traffic by channel</CardTitle>
@@ -161,12 +161,12 @@ export default async function DomainPage({
           )}
         </TabsContent>
 
-        <TabsContent value="search-console" className="space-y-4">
+        <TabsContent value="search-console" className="space-y-3">
           <RangeBar range={range} />
           {gsc ? (
             <>
               <GscOverview data={gsc.overview} />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                 <Card className="lg:col-span-2">
                   <CardHeader>
                     <CardTitle className="text-sm">
