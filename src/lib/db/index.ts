@@ -64,4 +64,25 @@ export function runMigrations(db: Database): void {
   if (!syncCols.includes("error_message")) {
     db.exec("ALTER TABLE sync_log ADD COLUMN error_message TEXT")
   }
+
+  // audits.strategy — added so we can record mobile vs desktop per audit.
+  // Plain ALTER works: NOT NULL with a constant DEFAULT is allowed by SQLite
+  // (unlike NOT NULL DEFAULT with REFERENCES which forced the rebuild above).
+  // Guard on table existence first because some migration tests build a
+  // pre-`audits` legacy schema.
+  const hasAudits =
+    db
+      .query<{ name: string }, []>(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='audits'"
+      )
+      .get() !== null
+  if (hasAudits) {
+    const auditCols = db
+      .query<{ name: string }, []>("PRAGMA table_info(audits)")
+      .all()
+      .map((c) => c.name)
+    if (!auditCols.includes("strategy")) {
+      db.exec("ALTER TABLE audits ADD COLUMN strategy TEXT NOT NULL DEFAULT 'mobile'")
+    }
+  }
 }

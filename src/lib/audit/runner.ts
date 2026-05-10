@@ -22,8 +22,11 @@ export async function runAudit(auditId: number): Promise<void> {
   setAuditStatus(db, auditId, "running")
   try {
     const apiKey = process.env.PSI_API_KEY ?? ""
-    const raw = await fetchPSI(audit.url, apiKey, "mobile")
-    const result = transformPsi(raw)
+    // Use whatever strategy was recorded on the audit row — the schema
+    // defaults to "mobile" so old / unmigrated calls still behave the same.
+    const strategy = audit.strategy ?? "mobile"
+    const raw = await fetchPSI(audit.url, apiKey, strategy)
+    const result = transformPsi(raw, strategy)
     setAuditResult(db, auditId, result)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

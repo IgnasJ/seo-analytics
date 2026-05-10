@@ -76,7 +76,8 @@ export const SCHEMA_SQL = `
     requested_at INTEGER NOT NULL DEFAULT (unixepoch()),
     completed_at INTEGER,
     result_json TEXT,
-    error_message TEXT
+    error_message TEXT,
+    strategy TEXT NOT NULL DEFAULT 'mobile'
   );
   CREATE INDEX IF NOT EXISTS idx_audits_url ON audits(url, requested_at DESC);
   CREATE INDEX IF NOT EXISTS idx_audits_status ON audits(status, requested_at DESC);

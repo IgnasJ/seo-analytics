@@ -25,6 +25,8 @@ const fixture: RawPSIResponse = {
         auditRefs: [
           { id: "largest-contentful-paint" },
           { id: "speed-index" },
+          { id: "unused-css-rules" },
+          { id: "uses-optimized-images" },
         ],
       },
       seo: {
@@ -79,6 +81,28 @@ const fixture: RawPSIResponse = {
         description: "...",
         score: 0.4,
       },
+      "unused-css-rules": {
+        id: "unused-css-rules",
+        title: "Reduce unused CSS",
+        description: "...",
+        score: 0.2,
+        details: { type: "opportunity", overallSavingsMs: 1500 },
+      },
+      "uses-optimized-images": {
+        id: "uses-optimized-images",
+        title: "Efficiently encode images",
+        description: "...",
+        score: 0.3,
+        details: { type: "opportunity", overallSavingsBytes: 51200 },
+      },
+      "final-screenshot": {
+        id: "final-screenshot",
+        title: "Final screenshot",
+        description: "",
+        score: null,
+        scoreDisplayMode: "informative",
+        details: { type: "screenshot", data: "data:image/jpeg;base64,FAKE=" },
+      },
     },
   },
 }
@@ -127,5 +151,38 @@ describe("transformPsi", () => {
     expect(lcp.category).toBe("performance")
     const meta = r.audits.find((a) => a.id === "meta-description")!
     expect(meta.category).toBe("seo")
+  })
+
+  it("captures numericSavings (ms) from opportunity details", () => {
+    const r = transformPsi(fixture)
+    const e = r.audits.find((a) => a.id === "unused-css-rules")!
+    expect(e.numericSavings).toBe(1500)
+    expect(e.savingsUnit).toBe("ms")
+  })
+
+  it("captures numericSavings (bytes) from diagnostic details", () => {
+    const r = transformPsi(fixture)
+    const e = r.audits.find((a) => a.id === "uses-optimized-images")!
+    expect(e.numericSavings).toBe(51200)
+    expect(e.savingsUnit).toBe("bytes")
+  })
+
+  it("leaves numericSavings null when Lighthouse didn't quantify a saving", () => {
+    const r = transformPsi(fixture)
+    const e = r.audits.find((a) => a.id === "csp-xss")!
+    expect(e.numericSavings).toBeNull()
+    expect(e.savingsUnit).toBeUndefined()
+  })
+
+  it("captures the final-screenshot data URL onto the result", () => {
+    const r = transformPsi(fixture)
+    expect(r.screenshot).toBe("data:image/jpeg;base64,FAKE=")
+  })
+
+  it("threads the strategy argument through onto the result", () => {
+    expect(transformPsi(fixture, "desktop").strategy).toBe("desktop")
+    expect(transformPsi(fixture, "mobile").strategy).toBe("mobile")
+    // Default arg is mobile so old callers keep working.
+    expect(transformPsi(fixture).strategy).toBe("mobile")
   })
 })

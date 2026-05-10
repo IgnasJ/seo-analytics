@@ -21,6 +21,7 @@ import { PositionBucketsChart } from "@/components/search-console/position-bucke
 import { TopQueriesTable } from "@/components/search-console/top-queries-table"
 import { IssuesTab } from "@/components/issues/issues-tab"
 import { OpportunitiesTab } from "@/components/opportunities/opportunities-tab"
+import { DomainAuditsTab } from "@/components/domain/domain-audits-tab"
 import { SyncButton } from "@/components/sync-button"
 import { DateRangePickerLink } from "@/components/date-range-picker"
 import {
@@ -99,6 +100,7 @@ export default async function DomainPage({
             <TabsTrigger value="search-console">Search Console</TabsTrigger>
             <TabsTrigger value="issues">Issues</TabsTrigger>
             <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
+            <TabsTrigger value="audits">Audits</TabsTrigger>
           </TabsList>
         </div>
 
@@ -209,6 +211,14 @@ export default async function DomainPage({
 
         <TabsContent value="opportunities">
           <OpportunitiesTab data={opportunities} />
+        </TabsContent>
+
+        <TabsContent value="audits">
+          <DomainAuditsTab
+            domainId={domain.id}
+            hostname={domain.hostname}
+            hasGscTopPages={(gsc?.topPages?.length ?? 0) > 0}
+          />
         </TabsContent>
       </Tabs>
     </div>

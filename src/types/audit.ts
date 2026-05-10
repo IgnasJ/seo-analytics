@@ -19,6 +19,15 @@ export interface AuditEntry {
   displayValue?: string
   category: AuditCategory
   severity: AuditSeverity
+  /**
+   * Estimated savings from Lighthouse's `details.overallSavingsMs` /
+   * `details.overallSavingsBytes` — the "Potential 1.2 s saved" /
+   * "Potential 84 KiB saved" pills you see in the Lighthouse UI. Null when
+   * Lighthouse didn't quantify a saving for this audit. Unit is encoded in
+   * `savingsUnit` so the renderer can pluralise correctly.
+   */
+  numericSavings: number | null
+  savingsUnit?: "ms" | "bytes"
 }
 
 export interface AuditResult {
@@ -43,9 +52,17 @@ export interface AuditResult {
     inp: CwvFieldMetric | null
   }
   audits: AuditEntry[]
+  /** Mobile vs desktop Lighthouse run. Defaults to "mobile" on legacy
+   *  result_json rows that predate this field. */
+  strategy?: "mobile" | "desktop"
+  /** PSI's final-screenshot data-URL (PNG, base64). Null when the response
+   *  didn't include one. Stored verbatim from `audits["final-screenshot"]`. */
+  screenshot?: string | null
 }
 
 export type AuditStatus = "pending" | "running" | "done" | "error"
+
+export type AuditStrategy = "mobile" | "desktop"
 
 export interface Audit {
   id: number
@@ -55,4 +72,6 @@ export interface Audit {
   completed_at: number | null
   result_json: string | null
   error_message: string | null
+  /** "mobile" | "desktop" — defaulted by the schema so old rows return mobile. */
+  strategy: AuditStrategy
 }

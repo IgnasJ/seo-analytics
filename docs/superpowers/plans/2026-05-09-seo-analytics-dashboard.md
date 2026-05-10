@@ -109,7 +109,7 @@ analytics/
 
 - [ ] **Step 1: Scaffold Next.js project with Bun**
 
-Run in `C:\Users\ignas.jatulis\Desktop\analytics`:
+Run in your local project directory (e.g. `~/analytics` or `C:\Users\<you>\Desktop\analytics`):
 ```bash
 bun create next-app . --typescript --tailwind --app --src-dir --no-eslint --import-alias "@/*"
 ```

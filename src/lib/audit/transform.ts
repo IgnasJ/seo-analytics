@@ -39,7 +39,10 @@ function fieldMetricFromCrux(m: RawCruxMetric | undefined): CwvFieldMetric | nul
  * Transform PSI's nested response into the flat AuditResult shape used by the
  * UI and by the diff renderer.
  */
-export function transformPsi(raw: RawPSIResponse): AuditResult {
+export function transformPsi(
+  raw: RawPSIResponse,
+  strategy: "mobile" | "desktop" = "mobile"
+): AuditResult {
   const lh = raw.lighthouseResult ?? {}
   const cats = lh.categories ?? {}
   const audits = lh.audits ?? {}
@@ -56,6 +59,25 @@ export function transformPsi(raw: RawPSIResponse): AuditResult {
       // actionable score - they clutter the report.
       if (a.scoreDisplayMode === "manual" || a.scoreDisplayMode === "notApplicable") continue
       const score = a.score ?? null
+
+      // Pull Lighthouse's quantified savings if present. Opportunities expose
+      // `overallSavingsMs`; resource-weight diagnostics expose
+      // `overallSavingsBytes`. Both are optional and only meaningful for
+      // failing/warning entries — passed audits don't get a "savings" pill.
+      const details = a.details
+      let numericSavings: number | null = null
+      let savingsUnit: "ms" | "bytes" | undefined
+      if (typeof details?.overallSavingsMs === "number" && details.overallSavingsMs > 0) {
+        numericSavings = details.overallSavingsMs
+        savingsUnit = "ms"
+      } else if (
+        typeof details?.overallSavingsBytes === "number" &&
+        details.overallSavingsBytes > 0
+      ) {
+        numericSavings = details.overallSavingsBytes
+        savingsUnit = "bytes"
+      }
+
       entries.push({
         id: a.id ?? ref.id,
         title: a.title ?? ref.id,
@@ -64,6 +86,8 @@ export function transformPsi(raw: RawPSIResponse): AuditResult {
         displayValue: a.displayValue,
         category,
         severity: severityFromScore(score),
+        numericSavings,
+        savingsUnit,
       })
     }
   }
@@ -85,6 +109,14 @@ export function transformPsi(raw: RawPSIResponse): AuditResult {
     inp: fieldMetricFromCrux(cruxMetrics.INTERACTION_TO_NEXT_PAINT),
   }
 
+  // PSI's final-screenshot lives at `lighthouseResult.audits["final-screenshot"].details.data`
+  // as a PNG data URL. Capture verbatim — it's already-encoded and renders by
+  // direct <img src=…> bind. Falsy when PSI omitted screenshots (rare).
+  const screenshot =
+    typeof audits["final-screenshot"]?.details?.data === "string"
+      ? (audits["final-screenshot"]?.details?.data ?? null)
+      : null
+
   return {
     fetchedUrl: lh.requestedUrl ?? "",
     finalUrl: lh.finalDisplayedUrl ?? lh.finalUrl ?? lh.requestedUrl ?? "",
@@ -97,5 +129,7 @@ export function transformPsi(raw: RawPSIResponse): AuditResult {
     labCwv,
     fieldCwv,
     audits: entries,
+    strategy,
+    screenshot,
   }
 }

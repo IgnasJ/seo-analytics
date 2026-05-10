@@ -45,6 +45,15 @@ export interface RawLighthouseResult {
       scoreDisplayMode?: string
       displayValue?: string
       numericValue?: number
+      details?: {
+        type?: string
+        // Opportunity / diagnostic audits expose a quantified saving here.
+        // Lighthouse fills only one of these depending on the audit kind.
+        overallSavingsMs?: number
+        overallSavingsBytes?: number
+        // final-screenshot stores the PNG data URL on `data`.
+        data?: string
+      }
     }
   >
 }

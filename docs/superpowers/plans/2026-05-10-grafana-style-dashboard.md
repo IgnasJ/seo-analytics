@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-10
 **Status:** Planned (decided via grilling session, ready to implement)
-**Author:** ijatulis@gmail.com
+**Author:** [@IgnasJ](https://github.com/IgnasJ)
 
 ---
 

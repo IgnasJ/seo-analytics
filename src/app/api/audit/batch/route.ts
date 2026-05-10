@@ -32,6 +32,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // Strategy applies to the whole batch — pairing per-URL strategy doesn't
+  // come up in our UI flows and complicates the form. Mobile is the default.
+  const strategy = body.strategy === "desktop" ? "desktop" : "mobile"
+
   const db = getDb()
   const ids: number[] = []
   const skipped: string[] = []
@@ -46,7 +50,7 @@ export async function POST(req: NextRequest) {
       skipped.push(raw)
       continue
     }
-    const audit = createAudit(db, url)
+    const audit = createAudit(db, url, strategy)
     enqueue(() => runAudit(audit.id))
     ids.push(audit.id)
   }
