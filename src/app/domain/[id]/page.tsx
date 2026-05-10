@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation"
 import { getDb } from "@/lib/db"
 import { getDomain } from "@/lib/db/queries/domains"
-import { getAnalyticsCache, getGscCache, getIssuesCache, getLastSyncedAt } from "@/lib/db/queries/cache"
+import {
+  getAnalyticsCache,
+  getGscCache,
+  getIssuesCache,
+  getLastSyncedAt,
+} from "@/lib/db/queries/cache"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MetricsOverview } from "@/components/analytics/metrics-overview"
@@ -15,36 +20,68 @@ import { TopQueriesTable } from "@/components/search-console/top-queries-table"
 import { IssuesTab } from "@/components/issues/issues-tab"
 import { OpportunitiesTab } from "@/components/opportunities/opportunities-tab"
 import { SyncButton } from "@/components/sync-button"
+import {
+  DateRangePickerLink,
+  DEFAULT_RANGE,
+  isDateRangeKey,
+  type DateRangeKey,
+} from "@/components/date-range-picker"
 import type { AnalyticsReport } from "@/types/analytics"
 import type { GscReport, IssuesReport } from "@/types/search-console"
 import { computeOpportunities } from "@/lib/seo/opportunities"
 
 export const dynamic = "force-dynamic"
 
-export default async function DomainPage({ params }: { params: Promise<{ id: string }> }) {
+const RANGE_LABEL: Record<DateRangeKey, string> = {
+  today: "today",
+  yesterday: "yesterday",
+  "7d": "the last 7 days",
+  "1m": "the last 30 days",
+  "90d": "the last 90 days",
+  "1y": "the last year",
+}
+
+export default async function DomainPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const { id } = await params
+  const sp = await searchParams
+  const rawRange = Array.isArray(sp.range) ? sp.range[0] : sp.range
+  const range: DateRangeKey = isDateRangeKey(rawRange) ? rawRange : DEFAULT_RANGE
+
   const db = getDb()
   const domain = getDomain(db, Number(id))
   if (!domain) notFound()
 
-  const analytics = getAnalyticsCache(db, domain.id, "1m") as AnalyticsReport | null
-  const gsc = getGscCache(db, domain.id, "1m") as GscReport | null
+  const analytics = getAnalyticsCache(db, domain.id, range) as AnalyticsReport | null
+  const gsc = getGscCache(db, domain.id, range) as GscReport | null
   const issues = getIssuesCache(db, domain.id) as IssuesReport | null
   const lastSyncedAt = getLastSyncedAt(db, domain.id)
   const opportunities = gsc ? computeOpportunities(gsc.topQueries) : []
 
-  const syncAgo = lastSyncedAt ? Math.round((Date.now() / 1000 - lastSyncedAt) / 3600) : null
+  const syncAgo = lastSyncedAt
+    ? Math.round((Date.now() / 1000 - lastSyncedAt) / 3600)
+    : null
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
         <div>
           <h1 className="text-xl font-semibold">{domain.hostname}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {syncAgo !== null ? `Last synced ${syncAgo}h ago` : "Never synced"}
+            {" · "}showing {RANGE_LABEL[range]}
           </p>
         </div>
         <SyncButton domainId={domain.id} />
+      </div>
+
+      <div className="mb-4">
+        <DateRangePickerLink selected={range} />
       </div>
 
       <Tabs defaultValue="analytics">
@@ -61,21 +98,36 @@ export default async function DomainPage({ params }: { params: Promise<{ id: str
               <MetricsOverview data={analytics.overview} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <Card className="lg:col-span-2">
-                  <CardHeader><CardTitle className="text-sm">Sessions over time</CardTitle></CardHeader>
-                  <CardContent><TrafficChart data={analytics.daily} /></CardContent>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Sessions over time</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <TrafficChart data={analytics.daily} />
+                  </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">Traffic by channel</CardTitle></CardHeader>
-                  <CardContent><ChannelChart data={analytics.channels} /></CardContent>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Traffic by channel</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ChannelChart data={analytics.channels} />
+                  </CardContent>
                 </Card>
               </div>
               <Card>
-                <CardHeader><CardTitle className="text-sm">Top pages</CardTitle></CardHeader>
-                <CardContent><TopPagesTable data={analytics.topPages} /></CardContent>
+                <CardHeader>
+                  <CardTitle className="text-sm">Top pages</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TopPagesTable data={analytics.topPages} />
+                </CardContent>
               </Card>
             </>
           ) : (
-            <p className="text-muted-foreground text-sm">No analytics data. Sync to load.</p>
+            <p className="text-muted-foreground text-sm">
+              No analytics data for this range yet. Click <strong>Sync</strong>{" "}
+              to fetch fresh data — it pulls every range in one pass.
+            </p>
           )}
         </TabsContent>
 
@@ -85,21 +137,38 @@ export default async function DomainPage({ params }: { params: Promise<{ id: str
               <GscOverview data={gsc.overview} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <Card className="lg:col-span-2">
-                  <CardHeader><CardTitle className="text-sm">Clicks &amp; Impressions</CardTitle></CardHeader>
-                  <CardContent><GscChart data={gsc.daily} /></CardContent>
+                  <CardHeader>
+                    <CardTitle className="text-sm">
+                      Clicks &amp; Impressions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <GscChart data={gsc.daily} />
+                  </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm">Keyword positions</CardTitle></CardHeader>
-                  <CardContent><PositionBucketsChart data={gsc.positionBuckets} /></CardContent>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Keyword positions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PositionBucketsChart data={gsc.positionBuckets} />
+                  </CardContent>
                 </Card>
               </div>
               <Card>
-                <CardHeader><CardTitle className="text-sm">Top queries</CardTitle></CardHeader>
-                <CardContent><TopQueriesTable data={gsc.topQueries} /></CardContent>
+                <CardHeader>
+                  <CardTitle className="text-sm">Top queries</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TopQueriesTable data={gsc.topQueries} />
+                </CardContent>
               </Card>
             </>
           ) : (
-            <p className="text-muted-foreground text-sm">No Search Console data. Sync to load.</p>
+            <p className="text-muted-foreground text-sm">
+              No Search Console data for this range yet. Click{" "}
+              <strong>Sync</strong> to fetch fresh data.
+            </p>
           )}
         </TabsContent>
 

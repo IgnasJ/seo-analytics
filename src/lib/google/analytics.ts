@@ -55,14 +55,22 @@ export async function fetchGA4Report(
     }),
   ])
 
-  const totals = overviewRes.data.totals?.[0]?.metricValues ?? []
+  // GA4 only populates `data.totals` when `metricAggregations` is explicitly
+  // requested. With no dimensions in the request, the aggregated metric
+  // values live in `rows[0]` — that's GA4's "single result row" pattern.
+  // Falling back through both shapes makes the parser resilient to either
+  // form (and to the test fixture, which has both).
+  const overviewMetrics =
+    overviewRes.data.rows?.[0]?.metricValues ??
+    overviewRes.data.totals?.[0]?.metricValues ??
+    []
 
   const overview = {
-    sessions: Number(totals[0]?.value ?? 0),
-    users: Number(totals[1]?.value ?? 0),
-    pageviews: Number(totals[2]?.value ?? 0),
-    bounceRate: Number(totals[3]?.value ?? 0),
-    avgSessionDuration: Number(totals[4]?.value ?? 0),
+    sessions: Number(overviewMetrics[0]?.value ?? 0),
+    users: Number(overviewMetrics[1]?.value ?? 0),
+    pageviews: Number(overviewMetrics[2]?.value ?? 0),
+    bounceRate: Number(overviewMetrics[3]?.value ?? 0),
+    avgSessionDuration: Number(overviewMetrics[4]?.value ?? 0),
   }
 
   const channels: ChannelRow[] = (channelsRes.data.rows ?? []).map((r) => ({
