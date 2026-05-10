@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ChevronDown, ChevronRight, TrendingUp, Lightbulb, Info } from "lucide-react"
 import type { OpportunityRow } from "@/lib/seo/opportunities"
 import { recommendationFor } from "@/lib/seo/recommendations"
+import { Hint } from "@/components/ui/hint"
 
 export function OpportunitiesTab({ data }: { data: OpportunityRow[] }) {
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -41,11 +42,72 @@ export function OpportunitiesTab({ data }: { data: OpportunityRow[] }) {
               <thead>
                 <tr className="border-b text-xs text-muted-foreground">
                   <th className="text-left pb-2 font-medium pl-1 w-6"></th>
-                  <th className="text-left pb-2 font-medium">Keyword</th>
-                  <th className="text-right pb-2 font-medium">Pos.</th>
-                  <th className="text-right pb-2 font-medium">Impr.</th>
-                  <th className="text-right pb-2 font-medium">CTR</th>
-                  <th className="text-right pb-2 font-medium">Score</th>
+                  <th className="text-left pb-2 font-medium">
+                    <Hint
+                      text="The exact search query users typed. Pulled from Search Console for the last 30 days."
+                      className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2"
+                    >
+                      Keyword
+                    </Hint>
+                  </th>
+                  <th className="text-right pb-2 font-medium">
+                    <Hint
+                      text="Average rank in Google search results. Lower is better — 4–10 is page 1, 11–20 is page 2."
+                      className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2"
+                    >
+                      Pos.
+                    </Hint>
+                  </th>
+                  <th className="text-right pb-2 font-medium">
+                    <Hint
+                      text="Number of times the page appeared in search results for this query in the last 30 days. Real search demand."
+                      className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2"
+                    >
+                      Impr.
+                    </Hint>
+                  </th>
+                  <th className="text-right pb-2 font-medium">
+                    <Hint
+                      text="Click-through rate — clicks ÷ impressions. Quick-wins surface where CTR is below the average for this candidate set, indicating snippet underperforms vs peers."
+                      className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2"
+                    >
+                      CTR
+                    </Hint>
+                  </th>
+                  <th className="text-right pb-2 font-medium">
+                    <Hint
+                      text={
+                        <div className="space-y-1.5">
+                          <div>
+                            <strong>Opportunity Score</strong> ranks keywords by
+                            their potential to convert into traffic.
+                          </div>
+                          <div>
+                            <span className="font-mono text-[10px]">
+                              score = (impressions ÷ (position × CTR)) × 10
+                            </span>
+                          </div>
+                          <div>
+                            Higher = better opportunity. The formula favours
+                            queries with <strong>lots of impressions</strong>{" "}
+                            (real demand), already{" "}
+                            <strong>close to the top</strong> (low position
+                            number), and currently{" "}
+                            <strong>low CTR</strong> (room to grow once you
+                            move up).
+                          </div>
+                          <div>
+                            It&apos;s a relative ranking, not an absolute
+                            number — compare scores across rows in this table,
+                            not to other domains.
+                          </div>
+                        </div>
+                      }
+                      className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2"
+                    >
+                      Score
+                    </Hint>
+                  </th>
                 </tr>
               </thead>
               <tbody>
