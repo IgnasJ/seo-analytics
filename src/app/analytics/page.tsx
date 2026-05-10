@@ -41,6 +41,13 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     rawCategory && /^\d+$/.test(rawCategory) ? Number(rawCategory) : null
   const issuesOnly = sp.issues === "1"
 
+  // Per-domain exclusion is a comma-separated list of domain ids in
+  // ?exclude=… — toggled via the leaderboard's eye column. Excluded
+  // domains drop from the trend charts and breakdowns but stay (dimmed)
+  // in the leaderboard so they're easy to re-include.
+  const rawExclude = Array.isArray(sp.exclude) ? sp.exclude[0] : sp.exclude
+  const excludedIds = parseExcludeList(rawExclude)
+
   const db = getDb()
   const allDomains = listDomains(db)
   const allCategories = listCategories(db)
@@ -94,6 +101,12 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     return true
   })
 
+  // For trends + breakdowns, also drop the explicitly-excluded domains.
+  // The leaderboard sees `filtered` (full set) so excluded rows can be
+  // re-included with one click; the comparison sections see `forCharts`.
+  const excludedSet = new Set(excludedIds)
+  const forCharts = filtered.filter((r) => !excludedSet.has(r.domain.id))
+
   // Per-category counts honour the issues-only filter so chip counts don't
   // lie when the user toggles issues.
   const issuesScoped = issuesOnly
@@ -107,10 +120,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     }))
     .filter((c) => c.count > 0)
 
-  // ---- Trend series ----
+  // ---- Trend series (uses forCharts: post-exclusion set) ----
   const dateUnion = (key: "analytics" | "gsc"): string[] => {
     const seen = new Set<string>()
-    for (const r of filtered) {
+    for (const r of forCharts) {
       const series =
         key === "analytics"
           ? r.selectedAnalytics?.daily ?? []
@@ -123,7 +136,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   const sessionsDates = dateUnion("analytics")
   const clicksDates = dateUnion("gsc")
 
-  const sessionsSeries: DomainSeries[] = filtered.map((r) => ({
+  const sessionsSeries: DomainSeries[] = forCharts.map((r) => ({
     domainId: r.domain.id,
     hostname: r.domain.hostname,
     data: (r.selectedAnalytics?.daily ?? []).map((d) => ({
@@ -132,7 +145,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     })),
   }))
 
-  const clicksSeries: DomainSeries[] = filtered.map((r) => ({
+  const clicksSeries: DomainSeries[] = forCharts.map((r) => ({
     domainId: r.domain.id,
     hostname: r.domain.hostname,
     data: (r.selectedGsc?.daily ?? []).map((d) => ({
@@ -141,7 +154,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     })),
   }))
 
-  const impressionsSeries: DomainSeries[] = filtered.map((r) => ({
+  const impressionsSeries: DomainSeries[] = forCharts.map((r) => ({
     domainId: r.domain.id,
     hostname: r.domain.hostname,
     data: (r.selectedGsc?.daily ?? []).map((d) => ({
@@ -164,8 +177,8 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     reasons: r.reasons,
   }))
 
-  // ---- Breakdown rows ----
-  const channelsRows: ShareRow[] = filtered.map((r) => ({
+  // ---- Breakdown rows (uses forCharts: post-exclusion set) ----
+  const channelsRows: ShareRow[] = forCharts.map((r) => ({
     label: r.domain.hostname,
     segments: (r.headlineAnalytics?.channels ?? []).map((c) => ({
       name: c.channel,
@@ -173,7 +186,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     })),
   }))
 
-  const countriesRows: ShareRow[] = filtered.map((r) => ({
+  const countriesRows: ShareRow[] = forCharts.map((r) => ({
     label: r.domain.hostname,
     segments: (r.headlineAnalytics?.countries ?? []).map((c) => ({
       name: c.country,
@@ -181,7 +194,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     })),
   }))
 
-  const devicesRows: ShareRow[] = filtered.map((r) => ({
+  const devicesRows: ShareRow[] = forCharts.map((r) => ({
     label: r.domain.hostname,
     segments: (r.headlineAnalytics?.devices ?? []).map((d) => ({
       name: d.device,
@@ -292,7 +305,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <LeaderboardTable rows={leaderboardRows} />
+                    <LeaderboardTable
+                      rows={leaderboardRows}
+                      excludedIds={excludedIds}
+                    />
                   </CardContent>
                 </Card>
               </section>
@@ -341,4 +357,20 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
       )}
     </div>
   )
+}
+
+/**
+ * Parse `?exclude=1,3,7` into a deduped, sorted list of positive integers.
+ * Garbage entries are ignored silently — the URL is user-editable so we
+ * shouldn't crash on a typo.
+ */
+function parseExcludeList(raw: string | undefined): number[] {
+  if (!raw) return []
+  const seen = new Set<number>()
+  for (const part of raw.split(",")) {
+    if (!/^\d+$/.test(part)) continue
+    const n = Number(part)
+    if (Number.isFinite(n) && n > 0) seen.add(n)
+  }
+  return [...seen].sort((a, b) => a - b)
 }

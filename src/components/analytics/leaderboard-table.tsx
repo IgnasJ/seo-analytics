@@ -1,8 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
+import { useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { Eye, EyeOff } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Hint } from "@/components/ui/hint"
 import { SortHeader } from "@/components/analytics/top-pages-table"
 import { StatusDot } from "@/components/dashboard/status-dot"
 import { formatCompact } from "@/lib/format"
@@ -35,9 +39,38 @@ type SortDir = "asc" | "desc"
 
 const SEVERITY_RANK: Record<Severity, number> = { red: 0, amber: 1, green: 2 }
 
-export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
+const EXCLUDE_PARAM = "exclude"
+
+interface Props {
+  rows: LeaderboardRow[]
+  /** Set of domain ids currently excluded from trends/breakdowns. Excluded
+   *  rows still render here, dimmed, with the toggle showing "EyeOff." */
+  excludedIds: number[]
+}
+
+export function LeaderboardTable({ rows, excludedIds }: Props) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const params = useSearchParams()
+  const excluded = useMemo(() => new Set(excludedIds), [excludedIds])
+
   const [sortKey, setSortKey] = useState<SortKey>("sessions")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
+
+  function toggleExclude(domainId: number) {
+    const next = new Set(excluded)
+    if (next.has(domainId)) next.delete(domainId)
+    else next.add(domainId)
+
+    const sp = new URLSearchParams(params)
+    if (next.size === 0) {
+      sp.delete(EXCLUDE_PARAM)
+    } else {
+      sp.set(EXCLUDE_PARAM, [...next].sort((a, b) => a - b).join(","))
+    }
+    const qs = sp.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -89,6 +122,15 @@ export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-xs text-muted-foreground">
+            <th className="pb-2 w-8">
+              <Hint
+                text="Click the eye on any row to exclude that domain from the trend charts and breakdown bars above. Excluded domains stay in this table (dimmed) so you can re-include them. Persists in the URL as ?exclude=…"
+                className="cursor-help"
+              >
+                <span className="sr-only">Include / exclude</span>
+                <Eye className="w-3 h-3 inline-block" />
+              </Hint>
+            </th>
             <SortHeader
               label="Domain"
               sortKey="hostname"
@@ -156,11 +198,39 @@ export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((r) => (
+          {sorted.map((r) => {
+            const isExcluded = excluded.has(r.domainId)
+            return (
             <tr
               key={r.domainId}
-              className="border-b last:border-0 hover:bg-muted/40"
+              className={`border-b last:border-0 hover:bg-muted/40 ${
+                isExcluded ? "opacity-40" : ""
+              }`}
             >
+              <td className="py-2">
+                <Hint
+                  text={
+                    isExcluded
+                      ? "Excluded from trend charts and breakdowns. Click to re-include."
+                      : "Excluded this domain from trend charts and breakdowns. Leaderboard rows stay visible (dimmed)."
+                  }
+                  className="cursor-help"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleExclude(r.domainId)}
+                    aria-label={isExcluded ? "Include in comparison" : "Exclude from comparison"}
+                    aria-pressed={isExcluded}
+                    className="p-1 rounded hover:bg-accent transition-colors"
+                  >
+                    {isExcluded ? (
+                      <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                    )}
+                  </button>
+                </Hint>
+              </td>
               <td className="py-2 font-medium">
                 <Link
                   href={`/domain/${r.domainId}`}
@@ -195,7 +265,8 @@ export function LeaderboardTable({ rows }: { rows: LeaderboardRow[] }) {
                 </span>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>
