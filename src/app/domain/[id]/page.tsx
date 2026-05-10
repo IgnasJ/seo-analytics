@@ -107,15 +107,18 @@ export default async function DomainPage({
           {analytics ? (
             <>
               <MetricsOverview data={analytics.overview} />
+              {/* Sessions-over-time gets the full width of the tab so the
+                  daily trend has room to breathe. */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Sessions over time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TrafficChart data={analytics.daily} />
+                </CardContent>
+              </Card>
+              {/* Three breakdowns share one row on lg+, stack on mobile. */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="text-sm">Sessions over time</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <TrafficChart data={analytics.daily} />
-                  </CardContent>
-                </Card>
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm">Traffic by channel</CardTitle>
@@ -124,8 +127,6 @@ export default async function DomainPage({
                     <ChannelChart data={analytics.channels} />
                   </CardContent>
                 </Card>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm">Top countries</CardTitle>
