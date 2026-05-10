@@ -136,8 +136,10 @@ export function Sidebar() {
       )}
       <aside
         className={cn(
-          "md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-background border-r shadow-lg flex flex-col transition-transform duration-200 ease-out",
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+          // Slide in from the right so the drawer is closer to the bottom-
+          // right hamburger button — minimises thumb travel on mobile.
+          "md:hidden fixed inset-y-0 right-0 z-50 w-64 bg-background border-l shadow-lg flex flex-col transition-transform duration-200 ease-out",
+          mobileOpen ? "translate-x-0" : "translate-x-full"
         )}
         role="dialog"
         aria-label="Navigation"
