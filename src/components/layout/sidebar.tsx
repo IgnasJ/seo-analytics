@@ -11,6 +11,7 @@ import {
   Search,
   Menu,
   X,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -24,6 +25,9 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Login page renders standalone — no sidebar chrome.
+  if (pathname === "/login") return null
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
@@ -43,27 +47,42 @@ export function Sidebar() {
     }
   }, [mobileOpen])
 
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" })
+    window.location.href = "/login"
+  }
+
   const navList = (
-    <nav className="flex-1 px-2 py-3 space-y-1">
-      {navItems.map((item) => {
-        const Icon = item.icon
-        const active = pathname === item.href
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-              active
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            <Icon className="w-4 h-4" />
-            {item.label}
-          </Link>
-        )
-      })}
+    <nav className="flex-1 px-2 py-3 flex flex-col">
+      <div className="space-y-1">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const active = pathname === item.href
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                active
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {item.label}
+            </Link>
+          )
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={logout}
+        className="mt-auto flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+      >
+        <LogOut className="w-4 h-4" />
+        Sign out
+      </button>
     </nav>
   )
 

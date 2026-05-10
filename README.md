@@ -54,10 +54,13 @@ ENCRYPTION_KEY=<run: openssl rand -hex 32>
 CRUX_API_KEY=<your API key>
 PSI_API_KEY=<your API key — same as CRUX_API_KEY is fine>
 DB_PATH=/app/data/analytics.db
+APP_USERNAME=admin
+APP_PASSWORD=<set this for any non-localhost deployment>
 ```
 
 > **Generate ENCRYPTION_KEY:** Run `openssl rand -hex 32` in your terminal and paste the output.
 > **Re-using the API key:** if you restricted the key to both CrUX and PSI APIs, you can use the same value for `CRUX_API_KEY` and `PSI_API_KEY`.
+> **App auth:** if `APP_PASSWORD` is empty or unset, the app runs with no login (convenient for `localhost`). Set both `APP_USERNAME` and `APP_PASSWORD` for any deployment beyond your machine. The session cookie is HMAC-signed with `ENCRYPTION_KEY`, so make sure that's set.
 
 ### 3. Run with Docker
 
@@ -122,7 +125,7 @@ pnpm run build
 3. Add the VPS callback URL to Google Cloud Console → Credentials → your OAuth client → Authorized redirect URIs.
 4. Run `docker compose up -d --build`.
 
-> **Security note:** the app has no built-in authentication — anyone reaching the URL can view your analytics. Safe for `localhost` Docker, **not** safe for an open public VPS. Put a reverse-proxy auth layer (Caddy basic-auth, Cloudflare Access, Tailscale, etc.) in front before exposing publicly.
+> **Security:** set `APP_USERNAME` and `APP_PASSWORD` in `.env` before exposing the app to the public internet. With auth enabled, every page and API route requires a signed session cookie (30-day expiry, HMAC-signed with `ENCRYPTION_KEY`); unauthenticated requests get redirected to `/login` (pages) or 401 (API). Auth is opt-in — leaving `APP_PASSWORD` blank disables it for local dev. For an extra defence-in-depth layer in front, a reverse proxy with Cloudflare Access, Tailscale, or basic-auth is still a good idea.
 
 ---
 
