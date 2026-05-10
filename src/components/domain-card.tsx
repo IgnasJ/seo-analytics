@@ -166,7 +166,7 @@ export function DomainCard(props: DomainCardProps) {
                     </div>
                   </div>
                 }
-                className="inline-flex"
+                className="inline-flex pointer-events-auto"
               >
                 <span className="cursor-help">
                   <TrendChip
@@ -202,7 +202,7 @@ function MetricRow({
       <span className="min-w-0">
         <span className="font-semibold font-mono tabular-nums">{value}</span>
         {labelTooltip ? (
-          <Hint text={labelTooltip} className="inline-flex ml-1.5">
+          <Hint text={labelTooltip} className="inline-flex ml-1.5 pointer-events-auto">
             <span className="text-xs text-muted-foreground cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
               {label}
             </span>
