@@ -49,11 +49,12 @@ export default function DomainsPage() {
   const [domains, setDomains] = useState<Domain[]>([])
   const [categories, setCategories] = useState<Category[]>([])
 
-  // Disclosure state — both panels start open. Stored in state rather than
-  // <details> so the open/closed status is part of the React tree (lets us
-  // animate later, persist to localStorage, etc.).
-  const [categoriesOpen, setCategoriesOpen] = useState(true)
-  const [domainsOpen, setDomainsOpen] = useState(true)
+  // Disclosure state — both panels start collapsed so the page is compact;
+  // the Add input row stays visible above the collapsed list. Stored in state
+  // rather than <details> so the open/closed status is part of the React
+  // tree (lets us animate later, persist to localStorage, etc.).
+  const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const [domainsOpen, setDomainsOpen] = useState(false)
 
   // Domain add state
   const [newHostname, setNewHostname] = useState("")
