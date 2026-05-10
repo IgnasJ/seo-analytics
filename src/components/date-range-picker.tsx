@@ -1,23 +1,13 @@
 "use client"
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { DATE_RANGES, type DateRangeKey } from "@/lib/date-range"
 
-const DATE_RANGES = [
-  { key: "today", label: "Today" },
-  { key: "yesterday", label: "Yesterday" },
-  { key: "7d", label: "7 days" },
-  { key: "1m", label: "1 month" },
-  { key: "90d", label: "90 days" },
-  { key: "1y", label: "1 year" },
-] as const
-
-export type DateRangeKey = (typeof DATE_RANGES)[number]["key"]
-
-export const DEFAULT_RANGE: DateRangeKey = "1m"
-
-export function isDateRangeKey(value: unknown): value is DateRangeKey {
-  return DATE_RANGES.some((r) => r.key === value)
-}
+// Re-export server-safe values for callers that already import from this
+// component module. Prefer `@/lib/date-range` directly when you don't need
+// the picker UI at all.
+export { DATE_RANGES, DEFAULT_RANGE, isDateRangeKey } from "@/lib/date-range"
+export type { DateRangeKey } from "@/lib/date-range"
 
 interface ControlledProps {
   selected: DateRangeKey
@@ -25,8 +15,7 @@ interface ControlledProps {
 }
 
 /**
- * Pure controlled date range picker — caller manages selection state. Used
- * in client components that fetch their own data.
+ * Pure controlled date range picker — caller manages selection state.
  */
 export function DateRangePicker({ selected, onChange }: ControlledProps) {
   return (

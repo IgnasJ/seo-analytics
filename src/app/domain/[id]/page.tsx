@@ -20,12 +20,12 @@ import { TopQueriesTable } from "@/components/search-console/top-queries-table"
 import { IssuesTab } from "@/components/issues/issues-tab"
 import { OpportunitiesTab } from "@/components/opportunities/opportunities-tab"
 import { SyncButton } from "@/components/sync-button"
+import { DateRangePickerLink } from "@/components/date-range-picker"
 import {
-  DateRangePickerLink,
   DEFAULT_RANGE,
   isDateRangeKey,
   type DateRangeKey,
-} from "@/components/date-range-picker"
+} from "@/lib/date-range"
 import type { AnalyticsReport } from "@/types/analytics"
 import type { GscReport, IssuesReport } from "@/types/search-console"
 import { computeOpportunities } from "@/lib/seo/opportunities"
