@@ -10,7 +10,7 @@ import {
 import { Smartphone, Monitor, Tablet, HelpCircle } from "lucide-react"
 import type { DeviceRow } from "@/types/analytics"
 import { formatInteger } from "@/lib/format"
-import { useLegendVisibility } from "./use-legend-visibility"
+import { useLegendVisibility } from "@/hooks/use-legend-visibility"
 
 const DEVICE_COLOURS: Record<string, string> = {
   desktop: "#3b82f6", // blue-500

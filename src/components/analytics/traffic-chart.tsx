@@ -11,7 +11,7 @@ import {
   Legend,
 } from "recharts"
 import type { DailyRow } from "@/types/analytics"
-import { useLegendVisibility } from "@/components/analytics/use-legend-visibility"
+import { useLegendVisibility } from "@/hooks/use-legend-visibility"
 import { formatInteger } from "@/lib/format"
 
 const SERIES = [

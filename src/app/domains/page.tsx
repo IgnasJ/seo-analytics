@@ -22,7 +22,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react"
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
+import { PageBreadcrumbs } from "@/components/layout/page-breadcrumbs"
 
 interface Domain {
   id: number

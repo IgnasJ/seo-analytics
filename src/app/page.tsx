@@ -8,7 +8,7 @@ import {
   getLastSyncedAt,
   getLastSyncStatus,
 } from "@/lib/db/queries/cache"
-import { DomainCard } from "@/components/domain-card"
+import { DomainCard } from "@/components/dashboard/domain-card"
 import { Button } from "@/components/ui/button"
 import { ViewToggle } from "@/components/dashboard/view-toggle"
 import { KpiStrip, type KpiData } from "@/components/dashboard/kpi-strip"

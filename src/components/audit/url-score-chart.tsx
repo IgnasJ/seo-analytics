@@ -10,7 +10,7 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts"
-import { useLegendVisibility } from "@/components/analytics/use-legend-visibility"
+import { useLegendVisibility } from "@/hooks/use-legend-visibility"
 import type { Audit, AuditResult } from "@/types/audit"
 import { formatDateTime } from "@/lib/format"
 

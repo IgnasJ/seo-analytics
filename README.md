@@ -55,9 +55,20 @@ src/
     google/                  # OAuth + GA4 + GSC + CrUX clients
     audit/                   # PSI client, transform, queue, runner
     seo/                     # opportunities, recommendations, issue-advice engines
-    sync/                    # Startup + manual sync orchestration
+    sync.ts                  # Startup + manual sync orchestration
     crypto.ts                # AES-GCM token encryption
-  components/                # UI components (shadcn/ui + custom)
+  components/
+    ui/                      # shadcn/ui primitives
+    analytics/               # Cross-domain analytics charts + leaderboard
+    audit/                   # Audit hub + URL-detail charts + pair selector
+    dashboard/               # Domain cards, KPI strip, sparklines, filters
+    domain/                  # Per-domain Audits tab
+    issues/                  # Core Web Vitals + sitemap diagnostics
+    opportunities/           # Quick-win keyword recommendations
+    search-console/          # GSC charts and tables
+    sync/                    # Sync buttons + history disclosure
+    layout/                  # Sidebar + theme toggle + breadcrumbs
+  hooks/                     # Shared React hooks (useLegendVisibility)
   types/                     # Shared TS types (analytics, search-console, audit, domain)
 ```
 

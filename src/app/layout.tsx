@@ -3,7 +3,7 @@ import { Inter } from "next/font/google"
 import Script from "next/script"
 import "./globals.css"
 import { Sidebar } from "@/components/layout/sidebar"
-import { StartupSync } from "@/components/startup-sync"
+import { StartupSync } from "@/components/sync/startup-sync"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 const inter = Inter({ subsets: ["latin"] })

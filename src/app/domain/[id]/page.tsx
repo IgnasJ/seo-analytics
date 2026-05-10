@@ -22,7 +22,7 @@ import { TopQueriesTable } from "@/components/search-console/top-queries-table"
 import { IssuesTab } from "@/components/issues/issues-tab"
 import { OpportunitiesTab } from "@/components/opportunities/opportunities-tab"
 import { DomainAuditsTab } from "@/components/domain/domain-audits-tab"
-import { SyncButton } from "@/components/sync-button"
+import { SyncButton } from "@/components/sync/sync-button"
 import { DateRangePickerLink } from "@/components/date-range-picker"
 import {
   DEFAULT_RANGE,
@@ -32,7 +32,7 @@ import {
 import type { AnalyticsReport } from "@/types/analytics"
 import type { GscReport, IssuesReport } from "@/types/search-console"
 import { computeOpportunities } from "@/lib/seo/opportunities"
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
+import { PageBreadcrumbs } from "@/components/layout/page-breadcrumbs"
 
 export const dynamic = "force-dynamic"
 

@@ -18,7 +18,7 @@ import {
   type DateRangeKey,
 } from "@/lib/date-range"
 import { DashboardFilters } from "@/components/dashboard/filters"
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
+import { PageBreadcrumbs } from "@/components/layout/page-breadcrumbs"
 import { MultiDomainLineChart, type DomainSeries } from "@/components/analytics/multi-domain-line-chart"
 import { LeaderboardTable, type LeaderboardRow } from "@/components/analytics/leaderboard-table"
 import { ShareBarChart, type ShareRow } from "@/components/analytics/share-bar-chart"

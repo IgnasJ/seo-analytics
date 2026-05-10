@@ -32,7 +32,7 @@ import {
 import { PageNav } from "@/components/ui/page-nav"
 import { Hint } from "@/components/ui/hint"
 import { formatDateTime } from "@/lib/format"
-import { PageBreadcrumbs } from "@/components/page-breadcrumbs"
+import { PageBreadcrumbs } from "@/components/layout/page-breadcrumbs"
 import type {
   Audit,
   AuditResult,

@@ -12,7 +12,7 @@ import {
 } from "recharts"
 import { domainColour } from "./domain-colour"
 import { formatInteger } from "@/lib/format"
-import { useLegendVisibility } from "./use-legend-visibility"
+import { useLegendVisibility } from "@/hooks/use-legend-visibility"
 
 export interface DomainSeries {
   domainId: number

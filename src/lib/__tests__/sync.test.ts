@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { isStale } from "../index"
+import { isStale } from "../sync"
 
 describe("isStale", () => {
   it("returns true when lastSyncedAt is null", () => {
