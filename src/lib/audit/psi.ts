@@ -2,6 +2,8 @@
 // in Google's cloud and returns the full Lighthouse JSON plus CrUX field data.
 // API: https://developers.google.com/speed/docs/insights/v5/get-started
 
+import { recordApiCall } from "@/lib/db/queries/api-usage"
+
 const PSI_ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
 const REQUEST_TIMEOUT_MS = 90_000
 
@@ -65,6 +67,7 @@ export async function fetchPSI(
     const res = await fetch(`${PSI_ENDPOINT}?${params.toString()}`, {
       signal: controller.signal,
     })
+    recordApiCall("psi")
     if (!res.ok) {
       const text = await res.text().catch(() => "")
       throw new Error(`PSI ${res.status}: ${text.slice(0, 300)}`)

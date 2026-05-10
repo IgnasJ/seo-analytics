@@ -95,3 +95,31 @@ export async function startupSync(): Promise<void> {
     }
   }
 }
+
+/**
+ * Force-sync every tracked domain regardless of cache staleness. Used by the
+ * "Sync all" button on the settings page. Returns per-domain success / failure
+ * so the UI can summarise. Sequential to keep API call rate under control.
+ */
+export async function syncAllDomains(): Promise<{
+  total: number
+  succeeded: number
+  failed: { hostname: string; error: string }[]
+}> {
+  const db = getDb()
+  const domains = listDomains(db)
+  const failed: { hostname: string; error: string }[] = []
+  let succeeded = 0
+  for (const domain of domains) {
+    try {
+      await syncDomain(domain.id)
+      succeeded++
+    } catch (err) {
+      failed.push({
+        hostname: domain.hostname,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+  return { total: domains.length, succeeded, failed }
+}

@@ -1,5 +1,6 @@
 import { google } from "googleapis"
 import type { GscReport, QueryRow, GscPageRow, DailyGscRow, PositionBuckets, IssuesReport, SitemapInfo, CwvMetric } from "@/types/search-console"
+import { recordApiCall } from "@/lib/db/queries/api-usage"
 
 export async function fetchGSCReport(
   siteUrl: string,
@@ -43,6 +44,11 @@ export async function fetchGSCReport(
       },
     }),
   ])
+
+  // Three GSC searchanalytics calls above run concurrently.
+  recordApiCall("gsc")
+  recordApiCall("gsc")
+  recordApiCall("gsc")
 
   const queryRows: QueryRow[] = (queriesRes.data.rows ?? []).map((r) => ({
     query: r.keys?.[0] ?? "",
@@ -96,6 +102,7 @@ export async function fetchSitemaps(siteUrl: string, accessToken: string): Promi
   const webmasters = google.webmasters({ version: "v3", auth })
 
   const res = await webmasters.sitemaps.list({ siteUrl })
+  recordApiCall("gsc")
   return (res.data.sitemap ?? []).map((s) => ({
     path: s.path ?? "",
     errors: s.errors ? Number(s.errors) : 0,
@@ -113,6 +120,7 @@ export async function fetchCrUX(origin: string, cruxApiKey: string): Promise<Iss
     body: JSON.stringify({ origin, formFactor: "PHONE" }),
   })
 
+  recordApiCall("crux")
   if (!res.ok) return { lcp: null, cls: null, inp: null }
 
   const data = await res.json()

@@ -61,6 +61,13 @@ export const SCHEMA_SQL = `
     UNIQUE(domain_id)
   );
 
+  CREATE TABLE IF NOT EXISTS api_call_counts (
+    api TEXT NOT NULL,
+    day TEXT NOT NULL,  -- YYYY-MM-DD UTC
+    count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (api, day)
+  );
+
   CREATE TABLE IF NOT EXISTS audits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     url TEXT NOT NULL,

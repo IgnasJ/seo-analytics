@@ -1,5 +1,6 @@
 import { google } from "googleapis"
 import type { AnalyticsReport, ChannelRow, PageRow, DailyRow } from "@/types/analytics"
+import { recordApiCall } from "@/lib/db/queries/api-usage"
 
 export async function fetchGA4Report(
   propertyId: string,
@@ -63,6 +64,12 @@ export async function fetchGA4Report(
       },
     }),
   ])
+
+  // Four GA4 reports run concurrently above. Count them as four calls.
+  recordApiCall("ga4")
+  recordApiCall("ga4")
+  recordApiCall("ga4")
+  recordApiCall("ga4")
 
   // With `metricAggregations: ["TOTAL"]` (set in the request above), GA4
   // populates `data.totals[0].metricValues` reliably. Fall back to rows[0]
