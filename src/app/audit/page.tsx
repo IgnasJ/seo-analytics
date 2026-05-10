@@ -17,6 +17,7 @@ import {
 import { LighthouseGauges } from "@/components/audit/lighthouse-gauges"
 import { AuditDetail } from "@/components/audit/audit-detail"
 import { Hint } from "@/components/ui/hint"
+import { formatDateTime } from "@/lib/format"
 import type { Audit, AuditResult } from "@/types/audit"
 
 interface DetailResponse {
@@ -341,7 +342,7 @@ function AuditRow({
   onDelete: () => void
   onRetry: () => void
 }) {
-  const ts = new Date(audit.requested_at * 1000).toLocaleString()
+  const ts = formatDateTime(audit.requested_at)
   const result =
     audit.result_json && audit.status === "done"
       ? (JSON.parse(audit.result_json) as AuditResult)
@@ -425,8 +426,7 @@ function AuditRow({
               <AuditDetail current={result} prior={priorResult} />
               {detail?.prior && (
                 <p className="text-xs text-muted-foreground">
-                  Diff baseline:{" "}
-                  {new Date(detail.prior.requested_at * 1000).toLocaleString()}
+                  Diff baseline: {formatDateTime(detail.prior.requested_at)}
                 </p>
               )}
               {!detail?.prior && (

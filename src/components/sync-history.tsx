@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { RefreshCw } from "lucide-react"
 import { PageNav } from "@/components/ui/page-nav"
+import { formatDateTime } from "@/lib/format"
 
 interface SyncLogEntry {
   id: number
@@ -157,9 +158,8 @@ function StatusBadge({ status }: { status: "success" | "error" }) {
 }
 
 function formatTimestamp(unixSeconds: number): string {
-  const d = new Date(unixSeconds * 1000)
-  const ageMin = Math.round((Date.now() - d.getTime()) / 60_000)
-  const abs = d.toLocaleString()
+  const ageMin = Math.round(Date.now() / 1000 / 60 - unixSeconds / 60)
+  const abs = formatDateTime(unixSeconds)
   if (ageMin < 60) return `${abs} (${ageMin} min ago)`
   if (ageMin < 60 * 24) return `${abs} (${Math.round(ageMin / 60)} h ago)`
   return abs
