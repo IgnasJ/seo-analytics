@@ -263,6 +263,7 @@ export default function DomainsPage() {
         <CardContent className="space-y-3">
           <div className="flex gap-2">
             <input
+              suppressHydrationWarning
               className="flex-1 border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="New category name"
               value={newCategoryName}
@@ -288,6 +289,7 @@ export default function DomainsPage() {
                   <div className="flex-1 flex items-center gap-2">
                     <input
                       autoFocus
+                      suppressHydrationWarning
                       className="flex-1 border rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       value={editingCategoryName}
                       onChange={(e) => setEditingCategoryName(e.target.value)}
@@ -399,6 +401,7 @@ export default function DomainsPage() {
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <input
+              suppressHydrationWarning
               className="flex-1 border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="example.com"
               value={newHostname}

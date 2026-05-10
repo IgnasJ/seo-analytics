@@ -186,6 +186,10 @@ export default function AuditPage() {
           </p>
           <div className="flex gap-2">
             <input
+              // suppressHydrationWarning silences the noise from form-filler
+              // browser extensions (SharkID, Grammarly, LastPass, etc.) that
+              // inject attributes onto inputs between SSR and hydration.
+              suppressHydrationWarning
               className="flex-1 border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="https://example.com/some-page"
               value={url}
@@ -215,6 +219,7 @@ export default function AuditPage() {
             {batchOpen && (
               <div className="mt-3 space-y-2">
                 <textarea
+                  suppressHydrationWarning
                   className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary font-mono"
                   rows={6}
                   placeholder={"https://example.com/a\nhttps://example.com/b\nhttps://competitor.com/foo"}

@@ -52,6 +52,9 @@ function LoginForm() {
           name="username"
           autoFocus
           autoComplete="username"
+          // Password managers commonly inject attributes onto credential
+          // inputs between SSR and hydration; suppress the resulting warn.
+          suppressHydrationWarning
           className="w-full border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -67,6 +70,7 @@ function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
+          suppressHydrationWarning
           className="w-full border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
