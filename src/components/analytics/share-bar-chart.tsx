@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { formatInteger } from "@/lib/format"
+import { Hint } from "@/components/ui/hint"
 
 const SEGMENT_PALETTE = [
   "#3b82f6", // blue
@@ -101,14 +102,34 @@ export function ShareBarChart({ rows, topN = 6, segmentOrder }: Props) {
                   const pct = (seg.value / total) * 100
                   if (pct < 0.5) return null // skip slivers below 0.5%
                   return (
-                    <div
+                    <Hint
                       key={seg.name}
-                      title={`${seg.name}: ${formatInteger(seg.value)} (${pct.toFixed(1)}%)`}
+                      text={
+                        <div className="space-y-0.5">
+                          <div className="font-medium">{seg.name}</div>
+                          <div>
+                            <span className="font-mono tabular-nums">
+                              {formatInteger(seg.value)}
+                            </span>{" "}
+                            sessions ({pct.toFixed(1)}%)
+                          </div>
+                          <div className="text-[10px] opacity-70">
+                            {row.label}
+                          </div>
+                        </div>
+                      }
+                      className="h-full transition-opacity hover:opacity-80 cursor-help"
                       style={{
                         width: `${pct}%`,
                         backgroundColor: colourFor(seg.name),
                       }}
-                    />
+                    >
+                      {/* Hint's TooltipTrigger renders its own span as the
+                          flex item; we pass empty children since the segment
+                          IS the trigger — colour comes from the inline
+                          style above. */}
+                      {""}
+                    </Hint>
                   )
                 })}
               </div>
