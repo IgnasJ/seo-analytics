@@ -65,7 +65,6 @@ export function DomainCard({
         {unlinked.length > 0 && (
           <Link
             href="/domains"
-            onClick={(e) => e.stopPropagation()}
             className="mb-3 flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 pointer-events-auto hover:bg-amber-100 transition-colors"
           >
             <Link2Off className="w-3.5 h-3.5 shrink-0 mt-0.5" />
