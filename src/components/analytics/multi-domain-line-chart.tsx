@@ -126,44 +126,52 @@ interface RichTooltipProps {
 
 /**
  * Custom tooltip:
- * - Renders every series with non-zero value at the hovered date.
- * - Sorts highest → lowest so the dominant domain is first.
+ * - Renders every visible (non-hidden) series at the hovered date — even
+ *   the ones with a zero value. Sorted highest → lowest so the dominant
+ *   domain is first; zero rows render dimmed and sink to the bottom.
+ * - Hidden series (legend-clicked off) don't appear here — recharts drops
+ *   them from the payload.
  * - Caps height + scrolls so a 30-domain chart's tooltip doesn't engulf
  *   the chart itself.
  */
 function RichTooltip({ active, label, payload }: RichTooltipProps) {
   if (!active || !payload || payload.length === 0) return null
-  const visible = payload
+  const all = payload
     .filter((p): p is TooltipPayloadEntry => Boolean(p))
-    .filter((p) => typeof p.value === "number" && (p.value as number) > 0)
+    .filter((p) => typeof p.value === "number")
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
 
   return (
     <div className="rounded-md border bg-background px-3 py-2 shadow-md text-xs max-h-60 overflow-y-auto">
       <div className="font-medium mb-1.5">{label}</div>
-      {visible.length === 0 ? (
+      {all.length === 0 ? (
         <div className="text-muted-foreground">No data.</div>
       ) : (
         <ul className="space-y-1">
-          {visible.map((p) => (
-            <li
-              key={p.name ?? "?"}
-              className="flex items-center justify-between gap-3"
-            >
-              <span className="flex items-center gap-1.5 truncate max-w-[180px]">
-                <span
-                  className="inline-block w-2 h-2 rounded-sm shrink-0"
-                  style={{ backgroundColor: p.color }}
-                />
-                <span className="truncate" title={p.name}>
-                  {p.name}
+          {all.map((p) => {
+            const isZero = (p.value ?? 0) === 0
+            return (
+              <li
+                key={p.name ?? "?"}
+                className={`flex items-center justify-between gap-3 ${
+                  isZero ? "opacity-50" : ""
+                }`}
+              >
+                <span className="flex items-center gap-1.5 truncate max-w-[180px]">
+                  <span
+                    className="inline-block w-2 h-2 rounded-sm shrink-0"
+                    style={{ backgroundColor: p.color }}
+                  />
+                  <span className="truncate" title={p.name}>
+                    {p.name}
+                  </span>
                 </span>
-              </span>
-              <span className="font-mono tabular-nums shrink-0">
-                {formatInteger(p.value ?? 0)}
-              </span>
-            </li>
-          ))}
+                <span className="font-mono tabular-nums shrink-0">
+                  {formatInteger(p.value ?? 0)}
+                </span>
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
