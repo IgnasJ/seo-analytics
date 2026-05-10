@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Plus, Trash2, Pencil, Check, X, ArrowUp, ArrowDown } from "lucide-react"
+import { SyncHistory } from "@/components/sync-history"
 
 interface Domain {
   id: number
@@ -482,6 +483,8 @@ export default function DomainsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <SyncHistory />
     </div>
   )
 }
