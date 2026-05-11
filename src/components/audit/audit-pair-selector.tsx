@@ -11,8 +11,42 @@ import {
 } from "lucide-react"
 import { AuditDetail } from "@/components/audit/audit-detail"
 import { LighthouseGauges } from "@/components/audit/lighthouse-gauges"
+import { Hint } from "@/components/ui/hint"
 import { formatDateTime } from "@/lib/format"
 import type { Audit, AuditResult, AuditStatus } from "@/types/audit"
+
+/**
+ * Single source of truth for the four Lighthouse score abbreviations used in
+ * the pair-selector table header. Wrap each `<th>` in a <Hint> so the user
+ * gets the expanded name on hover — same pattern as the score pills on
+ * /audit's history rows.
+ */
+const SCORE_ABBREVS: { abbr: string; label: string; tooltip: string }[] = [
+  {
+    abbr: "P",
+    label: "Performance",
+    tooltip:
+      "Performance score (0–100). Aggregated from lab Core Web Vitals — LCP, CLS, TBT, FCP, Speed Index.",
+  },
+  {
+    abbr: "A",
+    label: "Accessibility",
+    tooltip:
+      "Accessibility score (0–100). Automatable a11y checks: ARIA usage, semantic HTML, colour contrast, focus order, alt text.",
+  },
+  {
+    abbr: "BP",
+    label: "Best Practices",
+    tooltip:
+      "Best Practices score (0–100). Modern web platform usage: HTTPS, no console errors, valid HTML, no deprecated APIs.",
+  },
+  {
+    abbr: "S",
+    label: "SEO",
+    tooltip:
+      "SEO score (0–100). On-page indexability checks: title, meta description, mobile-friendly viewport, valid robots, structured data, descriptive link text.",
+  },
+]
 
 type Severity = "all" | "fail" | "warn" | "pass"
 
@@ -90,14 +124,31 @@ export function AuditPairCompare({
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr className="border-b">
-                <th className="px-2 py-1.5 text-center">A</th>
-                <th className="px-2 py-1.5 text-center">B</th>
+                <th className="px-2 py-1.5 text-center">
+                  <Hint
+                    text="Baseline audit. Selected pair is used by the diff renderer below as the 'before' state."
+                    className="cursor-help"
+                  >
+                    A
+                  </Hint>
+                </th>
+                <th className="px-2 py-1.5 text-center">
+                  <Hint
+                    text="Current audit. Selected pair is used by the diff renderer below as the 'after' state."
+                    className="cursor-help"
+                  >
+                    B
+                  </Hint>
+                </th>
                 <th className="px-2 py-1.5 text-left">When</th>
                 <th className="px-2 py-1.5 text-left">Status</th>
-                <th className="px-2 py-1.5 text-right">P</th>
-                <th className="px-2 py-1.5 text-right">A</th>
-                <th className="px-2 py-1.5 text-right">BP</th>
-                <th className="px-2 py-1.5 text-right">S</th>
+                {SCORE_ABBREVS.map((s) => (
+                  <th key={s.abbr} className="px-2 py-1.5 text-right">
+                    <Hint text={s.tooltip} className="cursor-help">
+                      {s.abbr}
+                    </Hint>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>

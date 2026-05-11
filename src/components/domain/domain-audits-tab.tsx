@@ -13,7 +13,6 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { PageNav } from "@/components/ui/page-nav"
 import { Hint } from "@/components/ui/hint"
 import { formatDateTime } from "@/lib/format"
@@ -322,15 +321,17 @@ function ScorePills({ result }: { result: AuditResult }) {
             : it.value >= 50
               ? "bg-amber-100 text-amber-700 border-amber-300"
               : "bg-red-100 text-red-700 border-red-300"
+        // Hint wraps the badge so the tooltip pops instantly (no browser
+        // ~1.5 s delay from a plain `title="…"`). Matches the score-pill
+        // pattern on /audit's flat history rows.
         return (
-          <Badge
+          <Hint
             key={it.label}
-            variant="outline"
-            className={`text-xs ${colour}`}
-            title={`${it.full}: ${it.value}/100`}
+            text={`${it.full}: ${it.value} / 100`}
+            className={`text-xs border rounded-md px-1.5 py-0.5 font-medium cursor-help ${colour}`}
           >
             {it.label} {it.value}
-          </Badge>
+          </Hint>
         )
       })}
     </div>

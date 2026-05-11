@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Hint } from "@/components/ui/hint"
 import { formatInteger, formatDateTime } from "@/lib/format"
 import type { AuditSummary } from "@/lib/audit/aggregates"
 
@@ -187,12 +188,19 @@ function WorstPagesList({ rows }: { rows: AuditSummary["worstPages"] }) {
                 {r.url}
               </Link>
               <div className="flex items-center gap-1 shrink-0 text-xs tabular-nums">
-                <Badge variant="outline" className={`${scoreTone(r.performance)} text-xs`}>
-                  P {r.performance}
-                </Badge>
-                <Badge variant="outline" className={`${scoreTone(r.seo)} text-xs`}>
-                  S {r.seo}
-                </Badge>
+                <Hint
+                  text={`Performance: ${r.performance} / 100`}
+                  className="cursor-help"
+                >
+                  <Badge variant="outline" className={`${scoreTone(r.performance)} text-xs`}>
+                    P {r.performance}
+                  </Badge>
+                </Hint>
+                <Hint text={`SEO: ${r.seo} / 100`} className="cursor-help">
+                  <Badge variant="outline" className={`${scoreTone(r.seo)} text-xs`}>
+                    S {r.seo}
+                  </Badge>
+                </Hint>
                 <span
                   className="text-muted-foreground ml-1 hidden sm:inline"
                   title={formatDateTime(r.requestedAt)}

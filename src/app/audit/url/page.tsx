@@ -2,8 +2,10 @@ import { notFound, redirect } from "next/navigation"
 import { getDb } from "@/lib/db"
 import { listAuditsForUrl } from "@/lib/db/queries/audits"
 import { listDomains } from "@/lib/db/queries/domains"
+import { Info } from "lucide-react"
 import { PageBreadcrumbs } from "@/components/layout/page-breadcrumbs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Hint } from "@/components/ui/hint"
 import { StrategyTabs } from "@/components/audit/strategy-tabs"
 import { UrlAuditHeader } from "@/components/audit/url-header"
 import { UrlScoreChart } from "@/components/audit/url-score-chart"
@@ -161,7 +163,15 @@ function StrategyView({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Lab Core Web Vitals over time</CardTitle>
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <span>Lab Core Web Vitals over time</span>
+              <Hint
+                text={<CwvLegend />}
+                className="inline-flex cursor-help text-muted-foreground hover:text-foreground"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </Hint>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {points.length === 0 ? (
@@ -219,4 +229,56 @@ function numOrNull(v: string | undefined): number | null {
   if (!v) return null
   const n = Number(v)
   return Number.isFinite(n) ? n : null
+}
+
+/**
+ * Tooltip body for the Lab Core Web Vitals chart header — names + targets
+ * for each metric so first-time viewers don't have to look up the
+ * abbreviations. Same definitions as the LabCwvStrip inside
+ * <AuditDetail>, condensed for the hover surface.
+ */
+function CwvLegend() {
+  const metrics: { abbr: string; name: string; line: string }[] = [
+    {
+      abbr: "LCP",
+      name: "Largest Contentful Paint",
+      line:
+        "Time until the largest visible element renders. Target < 2.5 s. Hero images, slow servers, render-blocking JS/CSS.",
+    },
+    {
+      abbr: "CLS",
+      name: "Cumulative Layout Shift",
+      line:
+        "How much the page jumps around as it loads (unit-less). Target < 0.1. Missing image dimensions, late-injected content, font swaps.",
+    },
+    {
+      abbr: "TBT",
+      name: "Total Blocking Time",
+      line:
+        "Total ms the main thread was busy enough to block input. Target < 200 ms. Lab equivalent of INP.",
+    },
+    {
+      abbr: "FCP",
+      name: "First Contentful Paint",
+      line:
+        "Time to render the first piece of text or image. Target < 1.8 s.",
+    },
+    {
+      abbr: "SI",
+      name: "Speed Index",
+      line:
+        "How quickly content visually populates above the fold (calculated from a video timeline of the load). Target < 3.4 s.",
+    },
+  ]
+  return (
+    <div className="space-y-1.5 text-xs leading-snug">
+      {metrics.map((m) => (
+        <div key={m.abbr}>
+          <span className="font-semibold">{m.abbr}</span>
+          <span className="text-muted-foreground"> · {m.name}</span>
+          <div className="text-muted-foreground">{m.line}</div>
+        </div>
+      ))}
+    </div>
+  )
 }
