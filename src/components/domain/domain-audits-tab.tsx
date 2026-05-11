@@ -143,6 +143,7 @@ export function DomainAuditsTab({ domainId, hostname, hasGscTopPages }: Props) {
               N=
               <input
                 type="number"
+                suppressHydrationWarning
                 min={1}
                 max={25}
                 value={n}

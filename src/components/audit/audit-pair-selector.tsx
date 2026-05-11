@@ -158,8 +158,13 @@ export function AuditPairCompare({
                 return (
                   <tr key={au.id} className="border-b last:border-b-0">
                     <td className="px-2 py-1.5 text-center">
+                      {/* suppressHydrationWarning silences mismatches injected
+                          by form-filler browser extensions (SharkID,
+                          Grammarly, LastPass, …) that decorate inputs with
+                          their own data-attributes between SSR and hydration. */}
                       <input
                         type="checkbox"
+                        suppressHydrationWarning
                         checked={a === au.id}
                         onChange={() => toggleA(au.id)}
                         disabled={disabled}
@@ -169,6 +174,7 @@ export function AuditPairCompare({
                     <td className="px-2 py-1.5 text-center">
                       <input
                         type="checkbox"
+                        suppressHydrationWarning
                         checked={b === au.id}
                         onChange={() => toggleB(au.id)}
                         disabled={disabled}
