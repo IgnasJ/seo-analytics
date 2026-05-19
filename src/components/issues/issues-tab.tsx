@@ -13,6 +13,7 @@ import {
   HelpCircle,
 } from "lucide-react"
 import type { IssuesReport, CwvMetric, SitemapInfo } from "@/types/search-console"
+import { IssueFixGuide } from "./issue-fix-guide"
 import {
   assessLcp,
   assessCls,
@@ -315,7 +316,13 @@ function Explainer({
   )
 }
 
-export function IssuesTab({ data }: { data: IssuesReport | null }) {
+export function IssuesTab({
+  data,
+  domainId,
+}: {
+  data: IssuesReport | null
+  domainId?: number
+}) {
   const [explainerOpen, setExplainerOpen] = useState(false)
   const [openCwv, setOpenCwv] = useState<"lcp" | "cls" | "inp" | null>(null)
   const [openSitemap, setOpenSitemap] = useState<number | null>(null)
@@ -416,6 +423,20 @@ export function IssuesTab({ data }: { data: IssuesReport | null }) {
           )}
         </CardContent>
       </Card>
+
+      {domainId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">AI Fix Plan</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Generate a prioritised action plan to fix the CWV and indexing issues above.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <IssueFixGuide domainId={domainId} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

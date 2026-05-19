@@ -47,11 +47,26 @@ export async function exchangeCode(code: string): Promise<TokenSet> {
   }
 }
 
+export class InvalidGrantError extends Error {
+  constructor() {
+    super("Google token expired or revoked — re-authentication required")
+    this.name = "InvalidGrantError"
+  }
+}
+
 export async function getValidAccessToken(refreshTokenEncrypted: string): Promise<string> {
   const { decrypt } = await import("../crypto")
   const client = createOAuthClient()
   client.setCredentials({ refresh_token: decrypt(refreshTokenEncrypted) })
-  const { token } = await client.getAccessToken()
-  if (!token) throw new Error("Failed to refresh access token")
-  return token
+  try {
+    const { token } = await client.getAccessToken()
+    if (!token) throw new Error("Failed to refresh access token")
+    return token
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes("invalid_grant") || (err as { code?: number }).code === 400) {
+      throw new InvalidGrantError()
+    }
+    throw err
+  }
 }

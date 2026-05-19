@@ -12,6 +12,7 @@ import { SyncHistoryDisclosure } from "@/components/sync/sync-history-disclosure
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { formatInteger } from "@/lib/format"
 import { PageBreadcrumbs } from "@/components/layout/page-breadcrumbs"
+import { AiRunnerCard } from "@/components/settings/ai-runner-card"
 
 export const dynamic = "force-dynamic"
 
@@ -174,6 +175,7 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      <AiRunnerCard />
     </div>
   )
 }

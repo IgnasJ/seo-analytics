@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation"
 import { getDb } from "@/lib/db"
 import { listAuditsForUrl } from "@/lib/db/queries/audits"
 import { listDomains } from "@/lib/db/queries/domains"
+import { getGscCache } from "@/lib/db/queries/cache"
 import { Info } from "lucide-react"
 import { PageBreadcrumbs } from "@/components/layout/page-breadcrumbs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,8 +12,12 @@ import { UrlAuditHeader } from "@/components/audit/url-header"
 import { UrlScoreChart } from "@/components/audit/url-score-chart"
 import { UrlCwvChart } from "@/components/audit/url-cwv-chart"
 import { AuditPairCompare } from "@/components/audit/audit-pair-selector"
+import { AuditDetail } from "@/components/audit/audit-detail"
+import { AuditGuideSection } from "@/components/audit/audit-guide-section"
 import { ScreenshotStrip } from "@/components/audit/screenshot-strip"
+import { formatDateTime } from "@/lib/format"
 import type { Audit, AuditStrategy, AuditResult } from "@/types/audit"
+import type { GscReport } from "@/types/search-console"
 
 export const dynamic = "force-dynamic"
 
@@ -50,6 +55,20 @@ export default async function AuditUrlPage({
     host = ""
   }
   const matchedDomain = domains.find((d) => d.hostname === host) ?? null
+
+  // GSC keywords ranking for this exact URL (used by the AI guide section).
+  type UrlKeyword = { query: string; impressions: number; position: number }
+  let urlKeywords: UrlKeyword[] = []
+  if (matchedDomain) {
+    const gsc = getGscCache(db, matchedDomain.id, "1m") as GscReport | null
+    if (gsc?.queryPages) {
+      urlKeywords = gsc.queryPages
+        .filter((qp) => qp.page === targetUrl)
+        .map((qp) => ({ query: qp.query, impressions: qp.impressions, position: qp.position }))
+        .sort((a, b) => b.impressions - a.impressions)
+        .slice(0, 10)
+    }
+  }
 
   // Split per strategy so each tab can render an independent chart series
   // and pair selector. Newest-first ordering is already provided by the query.
@@ -101,6 +120,9 @@ export default async function AuditUrlPage({
               sev={sev}
               compareA={compareA}
               compareB={compareB}
+              url={targetUrl}
+              domainId={matchedDomain?.id ?? null}
+              urlKeywords={urlKeywords}
             />
           ) : null
         }
@@ -111,6 +133,9 @@ export default async function AuditUrlPage({
               sev={sev}
               compareA={compareA}
               compareB={compareB}
+              url={targetUrl}
+              domainId={matchedDomain?.id ?? null}
+              urlKeywords={urlKeywords}
             />
           ) : null
         }
@@ -124,14 +149,18 @@ function StrategyView({
   sev,
   compareA,
   compareB,
+  url,
+  domainId,
+  urlKeywords,
 }: {
   audits: Audit[]
   sev: string
   compareA: number | null
   compareB: number | null
+  url: string
+  domainId: number | null
+  urlKeywords: { query: string; impressions: number; position: number }[]
 }) {
-  // Parse result_json once and pair each parse with its source audit so the
-  // chart and screenshot strip both work off the same indexed dataset.
   const points = audits
     .filter((a) => a.status === "done" && a.result_json)
     .map((a) => {
@@ -144,73 +173,110 @@ function StrategyView({
     })
     .filter((x): x is { audit: Audit; result: AuditResult } => x !== null)
 
+  const latest = points[0] ?? null
+
   return (
     <div className="space-y-4 pt-2">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      {/* Latest audit — shown prominently */}
+      {latest ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Scores over time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {points.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">
-                No completed audits yet for this strategy.
-              </p>
-            ) : (
-              <UrlScoreChart points={points} />
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <span>Lab Core Web Vitals over time</span>
-              <Hint
-                text={<CwvLegend />}
-                className="inline-flex cursor-help text-muted-foreground hover:text-foreground"
-              >
-                <Info className="w-3.5 h-3.5" />
-              </Hint>
+            <CardTitle className="text-sm">
+              Latest audit — {formatDateTime(latest.audit.requested_at)}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {points.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4">
-                No completed audits yet for this strategy.
-              </p>
-            ) : (
-              <UrlCwvChart points={points} />
-            )}
+            <AuditDetail current={latest.result} prior={points[1]?.result} />
           </CardContent>
         </Card>
-      </div>
+      ) : (
+        <p className="text-sm text-muted-foreground py-4">
+          No completed audits yet for this strategy.
+        </p>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Audits</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AuditPairCompare
-            audits={audits}
-            initialSeverity={
-              sev === "fail" || sev === "warn" || sev === "pass" ? sev : "all"
-            }
-            initialA={compareA}
-            initialB={compareB}
-          />
-        </CardContent>
-      </Card>
-
-      {points.some((p) => p.result.screenshot) && (
+      {/* AI improvement guide */}
+      {latest && domainId && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Screenshots over time</CardTitle>
+            <CardTitle className="text-sm">AI Improvement Guide</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScreenshotStrip points={points} />
+            <AuditGuideSection url={url} domainId={domainId} keywords={urlKeywords} />
           </CardContent>
         </Card>
       )}
+
+      {/* Collapsed audit history */}
+      <details className="border rounded-md group">
+        <summary className="px-4 py-3 cursor-pointer text-sm font-medium flex items-center justify-between select-none hover:bg-muted/50 rounded-md">
+          <span>Audit history</span>
+          <span className="text-xs text-muted-foreground font-normal">{points.length} run{points.length !== 1 ? "s" : ""}</span>
+        </summary>
+        <div className="px-4 pb-4 border-t space-y-4 pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Scores over time</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {points.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">No completed audits yet.</p>
+                ) : (
+                  <UrlScoreChart points={points} />
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <span>Lab Core Web Vitals over time</span>
+                  <Hint
+                    text={<CwvLegend />}
+                    className="inline-flex cursor-help text-muted-foreground hover:text-foreground"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                  </Hint>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {points.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">No completed audits yet.</p>
+                ) : (
+                  <UrlCwvChart points={points} />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Compare audits</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AuditPairCompare
+                audits={audits}
+                initialSeverity={
+                  sev === "fail" || sev === "warn" || sev === "pass" ? sev : "all"
+                }
+                initialA={compareA}
+                initialB={compareB}
+              />
+            </CardContent>
+          </Card>
+
+          {points.some((p) => p.result.screenshot) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Screenshots over time</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScreenshotStrip points={points} />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </details>
     </div>
   )
 }

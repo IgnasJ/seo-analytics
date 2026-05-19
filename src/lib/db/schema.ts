@@ -81,4 +81,36 @@ export const SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS idx_audits_url ON audits(url, requested_at DESC);
   CREATE INDEX IF NOT EXISTS idx_audits_status ON audits(status, requested_at DESC);
+
+  CREATE TABLE IF NOT EXISTS settings (
+    key        TEXT PRIMARY KEY,
+    value      TEXT NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+  );
+
+  CREATE TABLE IF NOT EXISTS guides (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain_id     INTEGER NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    url           TEXT NOT NULL,
+    query         TEXT NOT NULL,
+    model         TEXT NOT NULL,
+    raw_markdown  TEXT NOT NULL,
+    generated_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    superseded_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_guides_lookup
+    ON guides(domain_id, url, query, superseded_at);
+
+  CREATE TABLE IF NOT EXISTS guide_steps (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    guide_id  INTEGER NOT NULL REFERENCES guides(id) ON DELETE CASCADE,
+    position  INTEGER NOT NULL,
+    section   TEXT NOT NULL CHECK(section IN ('optimize', 'new_page')),
+    text      TEXT NOT NULL,
+    forecast  TEXT,
+    done      INTEGER NOT NULL DEFAULT 0,
+    done_at   INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_guide_steps_guide
+    ON guide_steps(guide_id, position);
 `

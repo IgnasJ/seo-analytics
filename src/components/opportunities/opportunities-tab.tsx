@@ -8,8 +8,9 @@ import type { OpportunityRow } from "@/lib/seo/opportunities"
 import { recommendationFor } from "@/lib/seo/recommendations"
 import { Hint } from "@/components/ui/hint"
 import { formatInteger } from "@/lib/format"
+import { GuidePanel } from "./guide-panel"
 
-export function OpportunitiesTab({ data }: { data: OpportunityRow[] }) {
+export function OpportunitiesTab({ data, domainId }: { data: OpportunityRow[]; domainId: number }) {
   const [expanded, setExpanded] = useState<number | null>(null)
   const [explainerOpen, setExplainerOpen] = useState(false)
 
@@ -116,6 +117,7 @@ export function OpportunitiesTab({ data }: { data: OpportunityRow[] }) {
                   <Row
                     key={i}
                     row={row}
+                    domainId={domainId}
                     isExpanded={expanded === i}
                     onToggle={() =>
                       setExpanded((curr) => (curr === i ? null : i))
@@ -267,10 +269,12 @@ function Explainer({
 
 function Row({
   row,
+  domainId,
   isExpanded,
   onToggle,
 }: {
   row: OpportunityRow
+  domainId: number
   isExpanded: boolean
   onToggle: () => void
 }) {
@@ -290,7 +294,21 @@ function Row({
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           )}
         </td>
-        <td className="py-2">{row.query}</td>
+        <td className="py-2">
+          <div>{row.query}</div>
+          {row.page && (
+            <a
+              href={row.page}
+              target="_blank"
+              rel="noopener"
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-muted-foreground hover:text-primary truncate block max-w-[280px]"
+              title={row.page}
+            >
+              {new URL(row.page).pathname}
+            </a>
+          )}
+        </td>
         <td className="py-2 text-right">
           <span className="inline-flex items-center gap-1">
             <Badge
@@ -370,6 +388,17 @@ function Row({
                 </div>
               </div>
             </div>
+            {row.page ? (
+              <GuidePanel
+                domainId={domainId}
+                url={row.page}
+                query={row.query}
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground mt-2">
+                Sync this domain to enable AI guide (page URL not yet available).
+              </p>
+            )}
           </td>
         </tr>
       )}

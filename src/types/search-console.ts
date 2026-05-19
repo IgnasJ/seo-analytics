@@ -21,6 +21,15 @@ export interface GscPageRow {
   position: number
 }
 
+export interface QueryPageRow {
+  query: string
+  page: string
+  clicks: number
+  impressions: number
+  ctr: number
+  position: number
+}
+
 export interface DailyGscRow {
   date: string
   clicks: number
@@ -40,6 +49,7 @@ export interface GscReport {
   topPages: GscPageRow[]
   daily: DailyGscRow[]
   positionBuckets: PositionBuckets
+  queryPages: QueryPageRow[]
 }
 
 export interface SitemapInfo {

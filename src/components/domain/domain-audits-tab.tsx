@@ -22,6 +22,7 @@ import type {
   AuditStatus,
   AuditStrategy,
 } from "@/types/audit"
+import { GuidePanel } from "@/components/opportunities/guide-panel"
 
 const PAGE_SIZE = 15
 
@@ -29,6 +30,7 @@ interface Props {
   domainId: number
   hostname: string
   hasGscTopPages: boolean
+  urlTopQuery?: Record<string, string>
 }
 
 interface ListResponse {
@@ -41,7 +43,7 @@ interface ListResponse {
  * domain plus a "Audit top N pages" action that batches the GSC top-clicked
  * URLs through PSI.
  */
-export function DomainAuditsTab({ domainId, hostname, hasGscTopPages }: Props) {
+export function DomainAuditsTab({ domainId, hostname, hasGscTopPages, urlTopQuery = {} }: Props) {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<ListResponse | null>(null)
   const [n, setN] = useState(10)
@@ -199,7 +201,12 @@ export function DomainAuditsTab({ domainId, hostname, hasGscTopPages }: Props) {
         <>
           <ul className="space-y-2">
             {data.rows.map((a) => (
-              <DomainAuditRow key={a.id} audit={a} />
+              <DomainAuditRow
+                key={a.id}
+                audit={a}
+                domainId={domainId}
+                topQuery={urlTopQuery[a.url]}
+              />
             ))}
           </ul>
           <PageNav
@@ -249,11 +256,24 @@ function StrategyToggle({
   )
 }
 
-function DomainAuditRow({ audit }: { audit: Audit }) {
+function DomainAuditRow({
+  audit,
+  domainId,
+  topQuery,
+}: {
+  audit: Audit
+  domainId: number
+  topQuery?: string
+}) {
+  const [guideOpen, setGuideOpen] = useState(false)
+  const [query, setQuery] = useState(topQuery ?? "")
+  const [committedQuery, setCommittedQuery] = useState(topQuery ?? "")
+
   const result =
     audit.result_json && audit.status === "done"
       ? (JSON.parse(audit.result_json) as AuditResult)
       : null
+
   return (
     <li className="border rounded-md px-3 py-2">
       <div className="flex items-center justify-between gap-2">
@@ -267,6 +287,17 @@ function DomainAuditRow({ audit }: { audit: Audit }) {
         <div className="flex items-center gap-2 shrink-0">
           {result && <ScorePills result={result} />}
           <StatusBadge status={audit.status} />
+          {audit.status === "done" && (
+            <button
+              type="button"
+              onClick={() => setGuideOpen((o) => !o)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Toggle AI improvement guide"
+              title="AI improvement guide"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+            </button>
+          )}
           <Link
             href={`/audit/url?u=${encodeURIComponent(audit.url)}`}
             className="text-muted-foreground hover:text-foreground"
@@ -279,6 +310,29 @@ function DomainAuditRow({ audit }: { audit: Audit }) {
       <p className="text-xs text-muted-foreground mt-1 tabular-nums">
         {formatDateTime(audit.requested_at)} · {audit.strategy ?? "mobile"}
       </p>
+
+      {guideOpen && (
+        <div className="mt-2 pt-2 border-t space-y-2">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground shrink-0">Target keyword:</label>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onBlur={() => setCommittedQuery(query)}
+              onKeyDown={(e) => { if (e.key === "Enter") setCommittedQuery(query) }}
+              placeholder="e.g. best landing page builders"
+              className="flex-1 border rounded px-2 py-1 text-xs"
+              suppressHydrationWarning
+            />
+          </div>
+          {committedQuery ? (
+            <GuidePanel domainId={domainId} url={audit.url} query={committedQuery} />
+          ) : (
+            <p className="text-xs text-muted-foreground">Enter a keyword and press Enter to load the guide.</p>
+          )}
+        </div>
+      )}
     </li>
   )
 }

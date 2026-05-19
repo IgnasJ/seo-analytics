@@ -99,3 +99,41 @@ describe("runMigrations: domains.category_id backfill", () => {
     expect(rows).toEqual([{ hostname: "once.com", category_id: 1 }])
   })
 })
+
+describe("runMigrations: settings / guides / guide_steps tables", () => {
+  it("creates settings table on fresh DB and is idempotent", () => {
+    const db = new Database(":memory:")
+    db.run("PRAGMA foreign_keys=ON")
+    db.exec(`
+      CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE,
+        sort_order INTEGER NOT NULL DEFAULT 0, is_system INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()));
+      INSERT INTO categories (id, name, sort_order, is_system) VALUES (1,'Uncategorized',999,1);
+      CREATE TABLE domains (id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hostname TEXT NOT NULL UNIQUE, ga4_property_id TEXT, gsc_site_url TEXT,
+        category_id INTEGER NOT NULL DEFAULT 1 REFERENCES categories(id),
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()));
+      CREATE TABLE sync_log (id INTEGER PRIMARY KEY AUTOINCREMENT,
+        domain_id INTEGER REFERENCES domains(id) ON DELETE CASCADE,
+        synced_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        status TEXT NOT NULL DEFAULT 'success', error_message TEXT);
+      CREATE TABLE audits (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending', requested_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        completed_at INTEGER, result_json TEXT, error_message TEXT,
+        strategy TEXT NOT NULL DEFAULT 'mobile');
+    `)
+    runMigrations(db)
+    runMigrations(db) // idempotent
+
+    const tables = db
+      .query<{ name: string }, []>(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+      )
+      .all()
+      .map((r) => r.name)
+
+    expect(tables).toContain("settings")
+    expect(tables).toContain("guides")
+    expect(tables).toContain("guide_steps")
+  })
+})

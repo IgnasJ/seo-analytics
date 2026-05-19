@@ -1,5 +1,5 @@
 import { google } from "googleapis"
-import type { GscReport, QueryRow, GscPageRow, DailyGscRow, PositionBuckets, IssuesReport, SitemapInfo, CwvMetric } from "@/types/search-console"
+import type { GscReport, QueryRow, GscPageRow, DailyGscRow, PositionBuckets, QueryPageRow, IssuesReport, SitemapInfo, CwvMetric } from "@/types/search-console"
 import { recordApiCall } from "@/lib/db/queries/api-usage"
 
 export async function fetchGSCReport(
@@ -12,7 +12,7 @@ export async function fetchGSCReport(
   auth.setCredentials({ access_token: accessToken })
   const webmasters = google.webmasters({ version: "v3", auth })
 
-  const [queriesRes, pagesRes, dailyRes] = await Promise.all([
+  const [queriesRes, pagesRes, dailyRes, queryPagesRes] = await Promise.all([
     webmasters.searchanalytics.query({
       siteUrl,
       requestBody: {
@@ -43,9 +43,20 @@ export async function fetchGSCReport(
         rowLimit: 500,
       },
     }),
+    webmasters.searchanalytics.query({
+      siteUrl,
+      requestBody: {
+        startDate,
+        endDate,
+        dimensions: ["query", "page"],
+        rowLimit: 1000,
+        aggregationType: "byPage",
+      },
+    }),
   ])
 
-  // Three GSC searchanalytics calls above run concurrently.
+  // Four GSC searchanalytics calls above run concurrently.
+  recordApiCall("gsc")
   recordApiCall("gsc")
   recordApiCall("gsc")
   recordApiCall("gsc")
@@ -72,6 +83,15 @@ export async function fetchGSCReport(
     impressions: r.impressions ?? 0,
   }))
 
+  const queryPages: QueryPageRow[] = (queryPagesRes.data.rows ?? []).map((r) => ({
+    query: r.keys?.[0] ?? "",
+    page: r.keys?.[1] ?? "",
+    clicks: r.clicks ?? 0,
+    impressions: r.impressions ?? 0,
+    ctr: r.ctr ?? 0,
+    position: r.position ?? 0,
+  }))
+
   const totalClicks = queryRows.reduce((s, r) => s + r.clicks, 0)
   const totalImpressions = queryRows.reduce((s, r) => s + r.impressions, 0)
   const avgCtr = totalImpressions > 0 ? totalClicks / totalImpressions : 0
@@ -93,6 +113,7 @@ export async function fetchGSCReport(
     topPages,
     daily,
     positionBuckets,
+    queryPages,
   }
 }
 

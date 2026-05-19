@@ -32,6 +32,15 @@ export function isStale(lastSyncedAt: number | null): boolean {
   return Date.now() / 1000 - lastSyncedAt > STALE_THRESHOLD_SECONDS
 }
 
+function sleep(ms: number) {
+  return new Promise<void>((r) => setTimeout(r, ms))
+}
+
+// Minimum gap between consecutive API calls within a single domain sync.
+// GSC allows ~20 QPS; GA4 disallows concurrent requests per property.
+// 300 ms keeps us comfortably under both limits even when ranges pile up.
+const API_CALL_DELAY_MS = 300
+
 export async function syncDomain(domainId: number): Promise<void> {
   const db = getDb()
   const domain = getDomain(db, domainId)
@@ -55,7 +64,9 @@ export async function syncDomain(domainId: number): Promise<void> {
   }
 
   if (domain.ga4_property_id) {
-    for (const range of DATE_RANGES) {
+    for (let i = 0; i < DATE_RANGES.length; i++) {
+      if (i > 0) await sleep(API_CALL_DELAY_MS)
+      const range = DATE_RANGES[i]
       try {
         const data = await fetchGA4Report(
           domain.ga4_property_id,
@@ -71,7 +82,9 @@ export async function syncDomain(domainId: number): Promise<void> {
   }
 
   if (domain.gsc_site_url) {
-    for (const range of DATE_RANGES) {
+    for (let i = 0; i < DATE_RANGES.length; i++) {
+      if (i > 0) await sleep(API_CALL_DELAY_MS)
+      const range = DATE_RANGES[i]
       try {
         const data = await fetchGSCReport(
           domain.gsc_site_url,
@@ -130,7 +143,17 @@ function summariseFailures(
     .join("\n")
 }
 
+let startupSyncPromise: Promise<void> | null = null
+
 export async function startupSync(): Promise<void> {
+  if (startupSyncPromise) return startupSyncPromise
+  startupSyncPromise = _runStartupSync().finally(() => {
+    startupSyncPromise = null
+  })
+  return startupSyncPromise
+}
+
+async function _runStartupSync(): Promise<void> {
   const db = getDb()
   const domains = listDomains(db)
   for (const domain of domains) {

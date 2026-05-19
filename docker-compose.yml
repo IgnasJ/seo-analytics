@@ -5,8 +5,25 @@ services:
       - "3000:3000"
     volumes:
       - analytics_data:/app/data
+    environment:
+      - AI_RUNNER=${AI_RUNNER:-local}
+      - AI_RUNNER_URL=${AI_RUNNER_URL:-http://ai-runner:3001}
+      - AI_MODEL=${AI_MODEL:-claude-sonnet-4-6}
+      - AI_CLI=${AI_CLI:-claude}
     env_file:
       - .env
+    restart: unless-stopped
+
+  ai-runner:
+    build:
+      context: ./docker/ai-runner
+      args:
+        AI_CLI: ${AI_CLI:-claude}
+    environment:
+      - MODEL=${AI_MODEL}
+      - AI_CLI=${AI_CLI:-claude}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     restart: unless-stopped
 
 volumes:

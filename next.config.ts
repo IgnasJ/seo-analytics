@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   //   "Blocked cross-origin request to Next.js dev resource /_next/...
   //    from '192.168.x.x'."
   // Edit this list if your machine's LAN IP changes.
-  allowedDevOrigins: ["192.168.0.135"],
+  allowedDevOrigins: ["172.31.96.1"],
   // Type-checking runs locally / in CI, not during the Docker production
   // build. Bun's partial worker_threads support deadlocks tsc here.
   typescript: { ignoreBuildErrors: true },

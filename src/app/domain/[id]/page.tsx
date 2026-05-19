@@ -32,6 +32,7 @@ import {
 import type { AnalyticsReport } from "@/types/analytics"
 import type { GscReport, IssuesReport } from "@/types/search-console"
 import { computeOpportunities } from "@/lib/seo/opportunities"
+import type { QueryPageRow } from "@/types/search-console"
 import { PageBreadcrumbs } from "@/components/layout/page-breadcrumbs"
 
 export const dynamic = "force-dynamic"
@@ -65,7 +66,9 @@ export default async function DomainPage({
   const gsc = getGscCache(db, domain.id, range) as GscReport | null
   const issues = getIssuesCache(db, domain.id) as IssuesReport | null
   const lastSyncedAt = getLastSyncedAt(db, domain.id)
-  const opportunities = gsc ? computeOpportunities(gsc.topQueries) : []
+  const opportunities = gsc
+    ? computeOpportunities(gsc.topQueries, gsc.queryPages)
+    : []
 
   const syncAgo = lastSyncedAt
     ? Math.round((Date.now() / 1000 - lastSyncedAt) / 3600)
@@ -206,11 +209,14 @@ export default async function DomainPage({
         </TabsContent>
 
         <TabsContent value="issues">
-          <IssuesTab data={issues} />
+          <IssuesTab
+            data={issues}
+            domainId={domain.id}
+          />
         </TabsContent>
 
         <TabsContent value="opportunities">
-          <OpportunitiesTab data={opportunities} />
+          <OpportunitiesTab data={opportunities} domainId={domain.id} />
         </TabsContent>
 
         <TabsContent value="audits">
@@ -218,6 +224,7 @@ export default async function DomainPage({
             domainId={domain.id}
             hostname={domain.hostname}
             hasGscTopPages={(gsc?.topPages?.length ?? 0) > 0}
+            urlTopQuery={buildUrlTopQuery(gsc?.queryPages)}
           />
         </TabsContent>
       </Tabs>
@@ -232,6 +239,18 @@ export default async function DomainPage({
  * (CrUX field metrics, sitemap status) or a fixed lookback, so the picker
  * doesn't belong there.
  */
+function buildUrlTopQuery(queryPages?: QueryPageRow[]): Record<string, string> {
+  if (!queryPages?.length) return {}
+  const best = new Map<string, { query: string; impressions: number }>()
+  for (const qp of queryPages) {
+    const cur = best.get(qp.page)
+    if (!cur || qp.impressions > cur.impressions) {
+      best.set(qp.page, { query: qp.query, impressions: qp.impressions })
+    }
+  }
+  return Object.fromEntries([...best.entries()].map(([url, v]) => [url, v.query]))
+}
+
 function RangeBar({ range }: { range: DateRangeKey }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-1">
