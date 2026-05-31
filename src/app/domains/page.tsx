@@ -214,10 +214,23 @@ export default function DomainsPage() {
 
   async function discoverProperties(domainId: number) {
     setDiscovering(domainId)
-    const res = await fetch(`/api/domains/${domainId}/discover`)
-    if (res.ok) setDiscoveryResult({ domainId, result: await res.json() })
-    else alert("Discovery failed — make sure Google account is connected")
-    setDiscovering(null)
+    try {
+      const res = await fetch(`/api/domains/${domainId}/discover`)
+      if (res.ok) {
+        setDiscoveryResult({ domainId, result: await res.json() })
+        return
+      }
+      const body = await res.json().catch(() => ({}))
+      if (body.error === "reauth_required") {
+        alert("Google token expired. Open Settings → Reconnect Google account, then retry.")
+        return
+      }
+      alert(`Discovery failed: ${body.error ?? `Request failed (${res.status})`}`)
+    } catch (err) {
+      alert(`Discovery failed: ${err instanceof Error ? err.message : "Network error"}`)
+    } finally {
+      setDiscovering(null)
+    }
   }
 
   async function applyDiscovery(

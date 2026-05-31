@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
 import { getToken } from "@/lib/db/queries/tokens"
-import { getValidAccessToken } from "@/lib/google/oauth"
+import { getValidAccessToken, InvalidGrantError } from "@/lib/google/oauth"
 import { discoverProperties } from "@/lib/google/search-console"
 import { getDomain } from "@/lib/db/queries/domains"
 
@@ -24,6 +24,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ ga4Properties: result.ga4Properties, gscSites: matchingGsc })
   } catch (err) {
+    if (err instanceof InvalidGrantError) {
+      return NextResponse.json({ error: "reauth_required" }, { status: 401 })
+    }
+    console.error("Discovery error:", err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
