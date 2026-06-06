@@ -1,3 +1,5 @@
+import { mkdirSync } from "node:fs"
+import { dirname } from "node:path"
 import { Database } from "./driver"
 import { SCHEMA_SQL } from "./schema"
 
@@ -6,6 +8,13 @@ let db: Database | null = null
 export function getDb(): Database {
   if (!db) {
     const path = process.env.DB_PATH ?? "./data/analytics.db"
+    // SQLite throws "unable to open database file" if the parent directory is
+    // missing — it creates the .db file but not the folder. The Docker image
+    // pre-creates /app/data, but a bare Node host (e.g. shared hosting) does
+    // not, so create it here to make the first boot work anywhere.
+    if (path !== ":memory:") {
+      mkdirSync(dirname(path), { recursive: true })
+    }
     db = new Database(path, { create: true })
     db.run("PRAGMA journal_mode=WAL")
     db.run("PRAGMA foreign_keys=ON")
