@@ -1,29 +1,26 @@
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 WORKDIR /app
 
-# Install pnpm via corepack (bundled with Node 20).
+# Install pnpm via corepack (bundled with Node 22).
 RUN corepack enable && corepack prepare pnpm@11.5.2 --activate
 
-# Build tools needed only if better-sqlite3's prebuilt binary is missing for
-# this platform. Removed in the runner stage.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
-
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml carries the `allowBuilds` decisions; without it pnpm 11
+# aborts on undecided dependency build scripts (sharp/msw).
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm run build
 
 
-FROM node:20-slim AS runner
+FROM node:22-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Standalone bundles all production dependencies (including the native
-# better-sqlite3 .node binary) into .next/standalone, so no pnpm install needed
-# at runtime.
+# Standalone bundles the app and its production dependencies into
+# .next/standalone, so no pnpm install is needed at runtime. SQLite is provided
+# by Node's built-in `node:sqlite` module (Node 22+), so there's no native addon
+# or build toolchain to carry into the image.
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
