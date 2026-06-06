@@ -2,6 +2,14 @@ import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Pin the Turbopack root to this project. A stray pnpm-lock.yaml in the
+  // parent dir (C:\dev\projects) made Next.js infer the wrong workspace root,
+  // which compiled proxy.ts under `[project]/analytics/src/proxy.ts` but left
+  // it out of the middleware manifest -> "Cannot find the middleware module"
+  // and 404s on every route. Anchoring the root here fixes module resolution.
+  turbopack: {
+    root: __dirname,
+  },
   // Position the Next.js dev-mode route indicator on the right edge.
   // Default is bottom-left.
   devIndicators: {
