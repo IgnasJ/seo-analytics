@@ -1,0 +1,15 @@
+# pnpm 11 moved build-script allowlisting out of package.json's "pnpm" field.
+# `onlyBuiltDependencies` was removed and replaced by `allowBuilds` (a map of
+# package -> bool). pnpm 11 hard-errors (ERR_PNPM_IGNORED_BUILDS) on ANY
+# dependency whose build script isn't explicitly decided here, so every package
+# that ships an install/build script must be listed.
+#
+#   better-sqlite3 -> true:  native addon; its script compiles the .node binary.
+#   sharp / msw    -> false: never built under pnpm 10's better-sqlite3-only
+#                            allowlist and the app shipped fine (sharp uses the
+#                            prebuilt @img/sharp-* packages; msw is test-only),
+#                            so keep them off to preserve existing behavior.
+allowBuilds:
+  better-sqlite3: true
+  msw: false
+  sharp: false

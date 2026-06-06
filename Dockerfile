@@ -2,7 +2,7 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # Install pnpm via corepack (bundled with Node 20).
-RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+RUN corepack enable && corepack prepare pnpm@11.5.2 --activate
 
 # Build tools needed only if better-sqlite3's prebuilt binary is missing for
 # this platform. Removed in the runner stage.
