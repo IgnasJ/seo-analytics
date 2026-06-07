@@ -44,6 +44,11 @@ interface DashboardCard {
   // Trend baseline (sums over the prior 7d for KPI strip)
   sessions7d: number
   clicks7d: number
+  // GSC impressions for the weighted-position KPI. Carried on the card so the
+  // dashboard reads each domain's GSC cache once (during card build) instead of
+  // re-reading + re-parsing it again while aggregating the KPI strip.
+  impressions1m: number
+  impressions7d: number
   // Health signals
   ga4Linked: boolean
   gscLinked: boolean
@@ -106,6 +111,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       dailyClicks: (gsc1m?.daily ?? []).map((d) => d.clicks),
       sessions7d: analytics7d?.overview.sessions ?? 0,
       clicks7d: gsc7d?.overview.totalClicks ?? 0,
+      impressions1m: gsc1m?.overview.totalImpressions ?? 0,
+      impressions7d: gsc7d?.overview.totalImpressions ?? 0,
       ga4Linked,
       gscLinked,
       lastSyncedAt,
@@ -162,22 +169,12 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     avgPosition: weightedAvgPosition(
       filteredCards
         .filter((c) => c.position1m !== null)
-        .map((c) => ({
-          position: c.position1m!,
-          impressions:
-            (getGscCache(db, c.id, "1m") as GscReport | null)?.overview
-              .totalImpressions ?? 0,
-        }))
+        .map((c) => ({ position: c.position1m!, impressions: c.impressions1m }))
     ),
     avgPositionPrior: weightedAvgPosition(
       filteredCards
         .filter((c) => c.position7d !== null)
-        .map((c) => ({
-          position: c.position7d!,
-          impressions:
-            (getGscCache(db, c.id, "7d") as GscReport | null)?.overview
-              .totalImpressions ?? 0,
-        }))
+        .map((c) => ({ position: c.position7d!, impressions: c.impressions7d }))
     ),
     healthy: counts.green,
     amber: counts.amber,

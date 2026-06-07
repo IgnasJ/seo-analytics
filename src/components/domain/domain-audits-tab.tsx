@@ -1,7 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { HoverPrefetchLink } from "@/components/ui/hover-prefetch-link"
+import { usePoll } from "@/hooks/use-poll"
 import {
   CheckCircle2,
   XCircle,
@@ -25,6 +26,9 @@ import type {
 import { GuidePanel } from "@/components/opportunities/guide-panel"
 
 const PAGE_SIZE = 15
+// Status poll cadence while audits are in flight (see usePoll). 5s is ample for
+// 15–30s PSI runs and far lighter than the old 2.5s beat.
+const AUDIT_POLL_INTERVAL_MS = 5000
 
 interface Props {
   domainId: number
@@ -51,8 +55,6 @@ export function DomainAuditsTab({ domainId, hostname, hasGscTopPages, urlTopQuer
   const [submitting, setSubmitting] = useState(false)
   const [info, setInfo] = useState<string | null>(null)
 
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
-
   const loadAudits = useCallback(async () => {
     const params = new URLSearchParams({
       hostname,
@@ -68,24 +70,13 @@ export function DomainAuditsTab({ domainId, hostname, hasGscTopPages, urlTopQuer
     loadAudits()
   }, [loadAudits])
 
-  useEffect(() => {
-    const rows = data?.rows ?? []
-    const inFlight = rows.some(
-      (a) => a.status === "pending" || a.status === "running"
-    )
-    if (inFlight && !pollTimer.current) {
-      pollTimer.current = setInterval(loadAudits, 2500)
-    } else if (!inFlight && pollTimer.current) {
-      clearInterval(pollTimer.current)
-      pollTimer.current = null
-    }
-    return () => {
-      if (pollTimer.current) {
-        clearInterval(pollTimer.current)
-        pollTimer.current = null
-      }
-    }
-  }, [data, loadAudits])
+  // Poll while an audit on this domain is still processing. usePoll stops when
+  // nothing is in flight, pauses on a hidden tab, cleans up on unmount, and
+  // prevents overlapping fetches.
+  const hasInFlight = (data?.rows ?? []).some(
+    (a) => a.status === "pending" || a.status === "running"
+  )
+  usePoll(loadAudits, hasInFlight, AUDIT_POLL_INTERVAL_MS)
 
   async function batchTopPages() {
     setSubmitting(true)

@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Hint } from "@/components/ui/hint"
 import { StrategyTabs } from "@/components/audit/strategy-tabs"
 import { UrlAuditHeader } from "@/components/audit/url-header"
-import { UrlScoreChart } from "@/components/audit/url-score-chart"
-import { UrlCwvChart } from "@/components/audit/url-cwv-chart"
+import {
+  UrlScoreChartLazy,
+  UrlCwvChartLazy,
+} from "@/components/audit/url-charts-lazy"
 import { AuditPairCompare } from "@/components/audit/audit-pair-selector"
 import { AuditDetail } from "@/components/audit/audit-detail"
 import { AuditGuideSection } from "@/components/audit/audit-guide-section"
@@ -223,7 +225,7 @@ function StrategyView({
                 {points.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">No completed audits yet.</p>
                 ) : (
-                  <UrlScoreChart points={points} />
+                  <UrlScoreChartLazy points={points} />
                 )}
               </CardContent>
             </Card>
@@ -243,7 +245,7 @@ function StrategyView({
                 {points.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4">No completed audits yet.</p>
                 ) : (
-                  <UrlCwvChart points={points} />
+                  <UrlCwvChartLazy points={points} />
                 )}
               </CardContent>
             </Card>

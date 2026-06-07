@@ -1,8 +1,9 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { HoverPrefetchLink } from "@/components/ui/hover-prefetch-link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { usePoll } from "@/hooks/use-poll"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -42,6 +43,9 @@ import type {
 
 const PAGE_SIZE = 20
 const STRATEGY_STORAGE_KEY = "audit-form-strategy"
+// Status poll cadence while audits are in flight. PSI runs take 15–30s, so a
+// 5s beat is plenty responsive while issuing far fewer requests than the old 2s.
+const AUDIT_POLL_INTERVAL_MS = 5000
 
 interface DetailResponse {
   audit: Audit
@@ -151,8 +155,6 @@ function AuditPageInner() {
   const [expanded, setExpanded] = useState<number | null>(null)
   const [details, setDetails] = useState<Record<number, DetailResponse>>({})
 
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
-
   // Build the query string once per render so loadAudits + the polling effect
   // can share it without drifting.
   const apiQuery = useMemo(() => {
@@ -176,28 +178,15 @@ function AuditPageInner() {
     loadAudits()
   }, [loadAudits])
 
-  // Poll while any audit on the current page is pending or running. Polls the
-  // current query so freshly-completed rows show up in place without the user
-  // having to refresh.
-  useEffect(() => {
-    const rows = data?.rows ?? []
-    const inFlight = rows.some((r) => {
-      const a = "latest" in r ? r.latest : (r as Audit)
-      return a.status === "pending" || a.status === "running"
-    })
-    if (inFlight && !pollTimer.current) {
-      pollTimer.current = setInterval(loadAudits, 2000)
-    } else if (!inFlight && pollTimer.current) {
-      clearInterval(pollTimer.current)
-      pollTimer.current = null
-    }
-    return () => {
-      if (pollTimer.current) {
-        clearInterval(pollTimer.current)
-        pollTimer.current = null
-      }
-    }
-  }, [data, loadAudits])
+  // Poll while any audit on the current page is pending or running so freshly-
+  // completed rows show up in place. usePoll stops automatically once nothing
+  // is in flight, pauses while the tab is hidden, cleans up on unmount, and
+  // never lets two fetches overlap.
+  const hasInFlight = (data?.rows ?? []).some((r) => {
+    const a = "latest" in r ? r.latest : (r as Audit)
+    return a.status === "pending" || a.status === "running"
+  })
+  usePoll(loadAudits, hasInFlight, AUDIT_POLL_INTERVAL_MS)
 
   async function submit() {
     if (!url.trim()) return

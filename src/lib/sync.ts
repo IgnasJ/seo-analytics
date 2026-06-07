@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db"
+import type { Database } from "@/lib/db/driver"
 import { listDomains, getDomain } from "@/lib/db/queries/domains"
 import { getToken } from "@/lib/db/queries/tokens"
 import { setAnalyticsCache, setGscCache, setIssuesCache, getLastSyncedAt, recordSync } from "@/lib/db/queries/cache"
@@ -6,11 +7,14 @@ import { getValidAccessToken } from "@/lib/google/oauth"
 import { fetchGA4Report } from "@/lib/google/analytics"
 import { fetchGSCReport, fetchSitemaps, fetchCrUX } from "@/lib/google/search-console"
 
+// Ordered so the dashboard's primary ranges (7d, 1m) are fetched first — each
+// range is written to cache as it lands, so the most-viewed data is fresh
+// soonest. Remaining ranges follow; their order is otherwise immaterial.
 const DATE_RANGES = [
-  { key: "today", startDate: () => formatDate(new Date()), endDate: () => formatDate(new Date()) },
-  { key: "yesterday", startDate: () => formatDate(daysAgo(1)), endDate: () => formatDate(daysAgo(1)) },
   { key: "7d", startDate: () => formatDate(daysAgo(7)), endDate: () => formatDate(new Date()) },
   { key: "1m", startDate: () => formatDate(daysAgo(30)), endDate: () => formatDate(new Date()) },
+  { key: "today", startDate: () => formatDate(new Date()), endDate: () => formatDate(new Date()) },
+  { key: "yesterday", startDate: () => formatDate(daysAgo(1)), endDate: () => formatDate(daysAgo(1)) },
   { key: "90d", startDate: () => formatDate(daysAgo(90)), endDate: () => formatDate(new Date()) },
   { key: "1y", startDate: () => formatDate(daysAgo(365)), endDate: () => formatDate(new Date()) },
 ]
@@ -41,7 +45,24 @@ function sleep(ms: number) {
 // 300 ms keeps us comfortably under both limits even when ranges pile up.
 const API_CALL_DELAY_MS = 300
 
-export async function syncDomain(domainId: number): Promise<void> {
+type FailureSink = (stage: string, err: unknown) => void
+
+// In-flight per-domain syncs. A second request for a domain that's already
+// syncing joins the running promise instead of launching duplicate API work —
+// covers double-clicks and a manual "sync now" overlapping with "sync all".
+const inFlightDomainSyncs = new Map<number, Promise<void>>()
+
+export function syncDomain(domainId: number): Promise<void> {
+  const existing = inFlightDomainSyncs.get(domainId)
+  if (existing) return existing
+  const run = runDomainSync(domainId).finally(() => {
+    inFlightDomainSyncs.delete(domainId)
+  })
+  inFlightDomainSyncs.set(domainId, run)
+  return run
+}
+
+async function runDomainSync(domainId: number): Promise<void> {
   const db = getDb()
   const domain = getDomain(db, domainId)
   if (!domain) throw new Error(`Domain ${domainId} not found`)
@@ -49,70 +70,36 @@ export async function syncDomain(domainId: number): Promise<void> {
   const tokenRow = getToken(db)
   if (!tokenRow) throw new Error("No OAuth token — connect Google account first")
 
-  // We split the sync into independent stages and catch each one so a single
-  // permission error (e.g. GSC 403 because the user isn't a Search Console
-  // verified owner of the property) doesn't drop the GA4 data we successfully
-  // pulled. Each failure stores both the stage label (for the summary) and
-  // the underlying error message (so the UI can show it on click).
   const accessToken = await getValidAccessToken(tokenRow.refresh_token_encrypted)
-  const failures: { stage: string; message: string }[] = []
 
-  function recordFailure(stage: string, err: unknown): void {
+  // Each stage catches its own errors so one failure (e.g. a GSC 403 when the
+  // account isn't a verified Search Console owner) never drops data another
+  // stage pulled successfully. Failures collect a stage label + message for the
+  // summary / UI. Pushes are safe to share across the concurrent stages below —
+  // the event loop is single-threaded, so they never interleave mid-push.
+  const failures: { stage: string; message: string }[] = []
+  const recordFailure: FailureSink = (stage, err) => {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`[${stage}] ${domain!.hostname}:`, message)
+    console.error(`[${stage}] ${domain.hostname}:`, message)
     failures.push({ stage, message })
   }
 
-  if (domain.ga4_property_id) {
-    for (let i = 0; i < DATE_RANGES.length; i++) {
-      if (i > 0) await sleep(API_CALL_DELAY_MS)
-      const range = DATE_RANGES[i]
-      try {
-        const data = await fetchGA4Report(
-          domain.ga4_property_id,
-          accessToken,
-          range.startDate(),
-          range.endDate()
-        )
-        setAnalyticsCache(db, domainId, range.key, data)
-      } catch (err) {
-        recordFailure(`GA4 ${range.key}`, err)
-      }
-    }
-  }
-
-  if (domain.gsc_site_url) {
-    for (let i = 0; i < DATE_RANGES.length; i++) {
-      if (i > 0) await sleep(API_CALL_DELAY_MS)
-      const range = DATE_RANGES[i]
-      try {
-        const data = await fetchGSCReport(
-          domain.gsc_site_url,
-          accessToken,
-          range.startDate(),
-          range.endDate()
-        )
-        setGscCache(db, domainId, range.key, data)
-      } catch (err) {
-        recordFailure(`GSC ${range.key}`, err)
-      }
-    }
-
-    try {
-      const [sitemaps, cwv] = await Promise.all([
-        fetchSitemaps(domain.gsc_site_url, accessToken),
-        fetchCrUX(
-          domain.gsc_site_url.startsWith("sc-domain:")
-            ? `https://${domain.gsc_site_url.replace("sc-domain:", "")}`
-            : domain.gsc_site_url,
-          process.env.CRUX_API_KEY ?? ""
-        ),
-      ])
-      setIssuesCache(db, domainId, { sitemaps, cwv })
-    } catch (err) {
-      recordFailure("issues", err)
-    }
-  }
+  // GA4, GSC and the sitemap/CrUX "issues" stage hit independent APIs, so we
+  // run them concurrently to shorten the overall request (wall-clock ≈ the
+  // slowest stage rather than their sum). Each stage still serialises its own
+  // per-range calls internally: GA4 disallows concurrent requests per property,
+  // and we keep GSC under its QPS ceiling.
+  await Promise.all([
+    domain.ga4_property_id
+      ? syncGa4Stage(db, domainId, domain.ga4_property_id, accessToken, recordFailure)
+      : Promise.resolve(),
+    domain.gsc_site_url
+      ? syncGscStage(db, domainId, domain.gsc_site_url, accessToken, recordFailure)
+      : Promise.resolve(),
+    domain.gsc_site_url
+      ? syncIssuesStage(db, domainId, domain.gsc_site_url, accessToken, recordFailure)
+      : Promise.resolve(),
+  ])
 
   if (failures.length > 0) {
     // Group identical messages so a 403 hitting all 6 GSC ranges renders as
@@ -122,6 +109,89 @@ export async function syncDomain(domainId: number): Promise<void> {
     throw new Error(`${domain.hostname}: ${summary}`)
   }
   recordSync(db, domainId, "success")
+}
+
+/**
+ * GA4 sessions/overview for every tracked date range. Sequential with a small
+ * inter-call delay — GA4 rejects concurrent requests to the same property.
+ */
+async function syncGa4Stage(
+  db: Database,
+  domainId: number,
+  propertyId: string,
+  accessToken: string,
+  recordFailure: FailureSink
+): Promise<void> {
+  for (let i = 0; i < DATE_RANGES.length; i++) {
+    if (i > 0) await sleep(API_CALL_DELAY_MS)
+    const range = DATE_RANGES[i]
+    try {
+      const data = await fetchGA4Report(
+        propertyId,
+        accessToken,
+        range.startDate(),
+        range.endDate()
+      )
+      setAnalyticsCache(db, domainId, range.key, data)
+    } catch (err) {
+      recordFailure(`GA4 ${range.key}`, err)
+    }
+  }
+}
+
+/**
+ * GSC search-analytics for every tracked date range. Sequential with a small
+ * inter-call delay to stay under the QPS ceiling.
+ */
+async function syncGscStage(
+  db: Database,
+  domainId: number,
+  siteUrl: string,
+  accessToken: string,
+  recordFailure: FailureSink
+): Promise<void> {
+  for (let i = 0; i < DATE_RANGES.length; i++) {
+    if (i > 0) await sleep(API_CALL_DELAY_MS)
+    const range = DATE_RANGES[i]
+    try {
+      const data = await fetchGSCReport(
+        siteUrl,
+        accessToken,
+        range.startDate(),
+        range.endDate()
+      )
+      setGscCache(db, domainId, range.key, data)
+    } catch (err) {
+      recordFailure(`GSC ${range.key}`, err)
+    }
+  }
+}
+
+/**
+ * Sitemaps + CrUX field data → issues cache. Independent of the range loops,
+ * so it runs alongside them.
+ */
+async function syncIssuesStage(
+  db: Database,
+  domainId: number,
+  siteUrl: string,
+  accessToken: string,
+  recordFailure: FailureSink
+): Promise<void> {
+  try {
+    const [sitemaps, cwv] = await Promise.all([
+      fetchSitemaps(siteUrl, accessToken),
+      fetchCrUX(
+        siteUrl.startsWith("sc-domain:")
+          ? `https://${siteUrl.replace("sc-domain:", "")}`
+          : siteUrl,
+        process.env.CRUX_API_KEY ?? ""
+      ),
+    ])
+    setIssuesCache(db, domainId, { sitemaps, cwv })
+  } catch (err) {
+    recordFailure("issues", err)
+  }
 }
 
 function summariseFailures(
