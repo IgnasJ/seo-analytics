@@ -3,7 +3,6 @@ import { Inter } from "next/font/google"
 import Script from "next/script"
 import "./globals.css"
 import { Sidebar } from "@/components/layout/sidebar"
-import { StartupSync } from "@/components/sync/startup-sync"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -42,7 +41,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {themeBootstrap}
         </Script>
         <TooltipProvider delay={0}>
-          <StartupSync />
           <div className="flex flex-col md:flex-row min-h-screen">
             <Sidebar />
             {/* Bottom padding on mobile keeps page content above the fixed
