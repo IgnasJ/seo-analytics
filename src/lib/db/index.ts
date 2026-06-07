@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { Database } from "./driver"
 import { SCHEMA_SQL } from "./schema"
+import { failOrphanedAudits } from "./queries/audits"
 
 let db: Database | null = null
 
@@ -20,6 +21,11 @@ export function getDb(): Database {
     db.run("PRAGMA foreign_keys=ON")
     db.exec(SCHEMA_SQL)
     runMigrations(db)
+    // The audit worker is an in-process queue that resets on every boot, so any
+    // audit left `pending`/`running` by a previous process is orphaned. Clear
+    // them now (once per process) — otherwise the audit pages poll forever
+    // waiting on a job no worker will ever finish. See failOrphanedAudits.
+    failOrphanedAudits(db)
   }
   return db
 }

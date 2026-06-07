@@ -10,8 +10,10 @@ import {
   listAuditGroupsFiltered,
   listAuditDomainGroupsFiltered,
   listAuditsForHostname,
+  setAuditStatus,
   setAuditResult,
   setAuditError,
+  failOrphanedAudits,
   getPriorCompletedAudit,
   deleteAudit,
 } from "../queries/audits"
@@ -192,6 +194,32 @@ describe("audits queries", () => {
     const other = page.rows.find((r) => r.hostname === "other.com")!
     expect(other.audits).toBe(1)
     expect(other.urls).toBe(1)
+  })
+
+  it("failOrphanedAudits fails in-flight rows but leaves finished ones", () => {
+    const pending = createAudit(db, "https://x/pending")
+    const running = createAudit(db, "https://x/running")
+    setAuditStatus(db, running.id, "running")
+    const done = createAudit(db, "https://x/done")
+    setAuditResult(db, done.id, emptyResult())
+    const errored = createAudit(db, "https://x/error")
+    setAuditError(db, errored.id, "boom")
+
+    const reaped = failOrphanedAudits(db)
+    expect(reaped).toBe(2)
+
+    const p = getAudit(db, pending.id)!
+    expect(p.status).toBe("error")
+    expect(p.completed_at).toBeGreaterThan(0)
+    expect(p.error_message).toMatch(/restart/i)
+    expect(getAudit(db, running.id)!.status).toBe("error")
+
+    // Finished audits are untouched.
+    expect(getAudit(db, done.id)!.status).toBe("done")
+    expect(getAudit(db, errored.id)!.error_message).toBe("boom")
+
+    // Idempotent: a second pass finds nothing in-flight.
+    expect(failOrphanedAudits(db)).toBe(0)
   })
 
   it("listAuditsForHostname matches hostnames but not lookalike strings", () => {

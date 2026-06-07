@@ -368,6 +368,32 @@ export function setAuditError(
 }
 
 /**
+ * Fail any audits still marked in-flight (`pending` / `running`).
+ *
+ * The audit worker is an in-process queue (src/lib/audit/queue.ts) whose state
+ * resets to empty on every Node process boot. A row left in-flight by a prior
+ * process (deploy, crash, restart) therefore has no worker to finish it and
+ * would stay in-flight forever — making `/audit` and `/domain/[id]` poll every
+ * couple of seconds indefinitely, a steady CPU drain on the host. Marking such
+ * rows failed clears the queue so polling stops and the user can re-run them.
+ *
+ * Call this ONLY at process startup (from getDb, after migrations and before
+ * any audit is enqueued): at that moment the live queue is empty, so every
+ * in-flight row is genuinely orphaned and none belongs to the running process.
+ * Returns the number of audits reaped.
+ */
+export function failOrphanedAudits(db: Database): number {
+  const { changes } = db.run(
+    `UPDATE audits
+        SET status = 'error',
+            error_message = 'Interrupted by a server restart — re-run this audit.',
+            completed_at = unixepoch()
+      WHERE status IN ('pending', 'running')`
+  )
+  return changes
+}
+
+/**
  * Find the most recent completed audit for a URL whose id is *less than*
  * `beforeId`. Used to compute diff baselines: "what was this URL's previous
  * audit before the one I'm currently rendering?".
