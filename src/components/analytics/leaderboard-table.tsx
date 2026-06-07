@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverPrefetchLink } from "@/components/ui/hover-prefetch-link"
 import { useMemo } from "react"
 import { useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -232,12 +232,12 @@ export function LeaderboardTable({ rows, excludedIds }: Props) {
                 </Hint>
               </td>
               <td className="py-2 font-medium">
-                <Link
+                <HoverPrefetchLink
                   href={`/domain/${r.domainId}`}
                   className="hover:underline"
                 >
                   {r.hostname}
-                </Link>
+                </HoverPrefetchLink>
               </td>
               <td className="py-2">
                 <Badge variant="outline" className="text-[10px]">

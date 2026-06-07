@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
+import { HoverPrefetchLink } from "@/components/ui/hover-prefetch-link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -572,12 +572,12 @@ function GroupedList({
         return (
           <li key={g.url} className="border rounded-md px-3 py-2">
             <div className="flex items-center justify-between gap-2">
-              <Link
+              <HoverPrefetchLink
                 href={`/audit/url?u=${encodeURIComponent(g.url)}`}
                 className="text-sm font-medium truncate hover:underline"
               >
                 {g.url}
-              </Link>
+              </HoverPrefetchLink>
               <div className="flex items-center gap-2 shrink-0">
                 <Badge variant="outline" className="text-xs">
                   {g.count} {g.count === 1 ? "audit" : "audits"}
@@ -587,13 +587,13 @@ function GroupedList({
                     <ScorePills result={result} />
                   </div>
                 )}
-                <Link
+                <HoverPrefetchLink
                   href={`/audit/url?u=${encodeURIComponent(g.url)}`}
                   className="text-muted-foreground hover:text-foreground"
                   aria-label="Open audit history for this URL"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
+                </HoverPrefetchLink>
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -721,14 +721,14 @@ function AuditRow({
           <span className="text-xs text-muted-foreground hidden md:inline">
             {ts}
           </span>
-          <Link
+          <HoverPrefetchLink
             href={`/audit/url?u=${encodeURIComponent(audit.url)}`}
             className="text-muted-foreground hover:text-foreground"
             aria-label="View all audits for this URL"
             title="View all audits for this URL"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-          </Link>
+          </HoverPrefetchLink>
           {audit.status === "error" && (
             <Button
               variant="ghost"

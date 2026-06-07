@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import Link from "next/link"
+import { HoverPrefetchLink } from "@/components/ui/hover-prefetch-link"
 import {
   CheckCircle2,
   XCircle,
@@ -192,9 +192,9 @@ export function DomainAuditsTab({ domainId, hostname, hasGscTopPages, urlTopQuer
         <p className="text-sm text-muted-foreground py-4">
           No audits for this domain yet. Use the button above to batch-audit
           your top pages, or paste a URL on the{" "}
-          <Link href="/audit" className="underline">
+          <HoverPrefetchLink href="/audit" className="underline">
             Audit
-          </Link>{" "}
+          </HoverPrefetchLink>{" "}
           tab.
         </p>
       ) : (
@@ -277,13 +277,13 @@ function DomainAuditRow({
   return (
     <li className="border rounded-md px-3 py-2">
       <div className="flex items-center justify-between gap-2">
-        <Link
+        <HoverPrefetchLink
           href={`/audit/url?u=${encodeURIComponent(audit.url)}`}
           className="text-sm font-medium truncate hover:underline min-w-0 flex-1"
           title={audit.url}
         >
           {audit.url}
-        </Link>
+        </HoverPrefetchLink>
         <div className="flex items-center gap-2 shrink-0">
           {result && <ScorePills result={result} />}
           <StatusBadge status={audit.status} />
@@ -298,13 +298,13 @@ function DomainAuditRow({
               <Sparkles className="w-3.5 h-3.5" />
             </button>
           )}
-          <Link
+          <HoverPrefetchLink
             href={`/audit/url?u=${encodeURIComponent(audit.url)}`}
             className="text-muted-foreground hover:text-foreground"
             aria-label="Open audit history for this URL"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-          </Link>
+          </HoverPrefetchLink>
         </div>
       </div>
       <p className="text-xs text-muted-foreground mt-1 tabular-nums">

@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverPrefetchLink } from "@/components/ui/hover-prefetch-link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import {
@@ -61,7 +61,7 @@ export function Sidebar() {
           const Icon = item.icon
           const active = pathname === item.href
           return (
-            <Link
+            <HoverPrefetchLink
               key={item.href}
               href={item.href}
               className={cn(
@@ -73,7 +73,7 @@ export function Sidebar() {
             >
               <Icon className="w-4 h-4" />
               {item.label}
-            </Link>
+            </HoverPrefetchLink>
           )
         })}
       </div>
@@ -97,13 +97,13 @@ export function Sidebar() {
         className="md:hidden fixed inset-x-0 bottom-0 z-30 flex items-center justify-between bg-background border-t px-3 py-2"
         style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
       >
-        <Link
+        <HoverPrefetchLink
           href="/"
           className="flex items-center gap-2 font-semibold text-sm"
         >
           <Globe className="w-4 h-4" />
           SEO Dashboard
-        </Link>
+        </HoverPrefetchLink>
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
@@ -117,13 +117,13 @@ export function Sidebar() {
       {/* Desktop persistent sidebar */}
       <aside className="hidden md:flex w-56 min-h-screen border-r bg-background flex-col shrink-0">
         <div className="px-4 py-5 border-b">
-          <Link
+          <HoverPrefetchLink
             href="/"
             className="flex items-center gap-2 font-semibold text-sm hover:opacity-80 transition-opacity"
           >
             <Globe className="w-4 h-4" />
             SEO Dashboard
-          </Link>
+          </HoverPrefetchLink>
         </div>
         {navList}
       </aside>
@@ -148,10 +148,10 @@ export function Sidebar() {
         aria-hidden={!mobileOpen}
       >
         <div className="px-4 py-4 border-b flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-sm">
+          <HoverPrefetchLink href="/" className="flex items-center gap-2 font-semibold text-sm">
             <Globe className="w-4 h-4" />
             SEO Dashboard
-          </Link>
+          </HoverPrefetchLink>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}

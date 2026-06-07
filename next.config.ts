@@ -24,6 +24,17 @@ const nextConfig: NextConfig = {
   // Type-checking runs locally / in CI, not during the Docker production
   // build. Bun's partial worker_threads support deadlocks tsc here.
   typescript: { ignoreBuildErrors: true },
+  // Keep prefetched / just-visited *dynamic* route segments in the client
+  // router cache for a short window. The default is 0s, so navigating back to
+  // a section re-issues a full RSC render every time — a steady CPU drain on
+  // this dashboard, whose data only changes on sync (≤ once/day). 30s lets the
+  // client reuse a segment within a browsing session. Tradeoff: a revisited
+  // section can show data up to 30s stale before the next refresh.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+    },
+  },
 }
 
 export default nextConfig

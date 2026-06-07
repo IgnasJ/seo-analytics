@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -23,6 +23,10 @@ interface Props {
   strategyDefault: AuditStrategy
 }
 
+// Cadence + hard cap for the post-re-audit status poll (see reAudit).
+const POLL_INTERVAL_MS = 3000
+const POLL_TIMEOUT_MS = 120_000
+
 /**
  * Sticky-feeling header strip on `/audit/url`. Shows the URL, the matched
  * tracked-domain badge if any, the strategy toggle for the next re-audit,
@@ -33,6 +37,72 @@ export function UrlAuditHeader({ url, domain, strategyDefault }: Props) {
   const [strategy, setStrategy] = useState<AuditStrategy>(strategyDefault)
   const [submitting, setSubmitting] = useState(false)
   const [submitMsg, setSubmitMsg] = useState<string | null>(null)
+
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function stopPolling() {
+    if (pollTimer.current) {
+      clearInterval(pollTimer.current)
+      pollTimer.current = null
+    }
+    if (stopTimer.current) {
+      clearTimeout(stopTimer.current)
+      stopTimer.current = null
+    }
+  }
+
+  // Clear timers if the user navigates away while a poll is in flight.
+  useEffect(() => stopPolling, [])
+
+  // After queueing a re-audit, watch for completion via the lightweight JSON
+  // by-host endpoint and call router.refresh() exactly once when the audit
+  // lands — instead of blindly re-rendering this `force-dynamic` route every
+  // few seconds for 90 s (≈30 full RSC renders) regardless of progress.
+  function startStatusPolling() {
+    stopPolling()
+    let host = ""
+    try {
+      host = new URL(url).hostname
+    } catch {
+      host = ""
+    }
+    if (!host) {
+      // Can't poll by host — fall back to a single delayed refresh.
+      stopTimer.current = setTimeout(() => router.refresh(), 30_000)
+      return
+    }
+    pollTimer.current = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/audit/by-host?hostname=${encodeURIComponent(host)}&limit=100`
+        )
+        if (!res.ok) return // transient — retry next tick
+        const data = (await res.json()) as {
+          rows?: { url: string; status: string }[]
+        }
+        const running = (data.rows ?? []).some(
+          (r) =>
+            r.url === url &&
+            (r.status === "pending" || r.status === "running")
+        )
+        if (!running) {
+          // Our queued audit has left the queue — pull the fresh server render
+          // once, then stop.
+          stopPolling()
+          router.refresh()
+        }
+      } catch {
+        /* network blip — keep polling until the timeout */
+      }
+    }, POLL_INTERVAL_MS)
+    // Hard stop so a stalled PSI run can't poll forever; surface whatever
+    // landed on the way out.
+    stopTimer.current = setTimeout(() => {
+      stopPolling()
+      router.refresh()
+    }, POLL_TIMEOUT_MS)
+  }
 
   async function reAudit() {
     setSubmitting(true)
@@ -49,12 +119,7 @@ export function UrlAuditHeader({ url, domain, strategyDefault }: Props) {
         return
       }
       setSubmitMsg("Queued. This page will update when it finishes.")
-      // Refresh the server payload (audits list) every few seconds until the
-      // new audit lands. Cheaper than client-side polling because the server
-      // already handles dedup + ordering.
-      const t = setInterval(() => router.refresh(), 3000)
-      // Stop polling after ~90 s — PSI usually completes within 30 s.
-      setTimeout(() => clearInterval(t), 90_000)
+      startStatusPolling()
     } catch (err) {
       setSubmitMsg(err instanceof Error ? err.message : "Network error")
     } finally {

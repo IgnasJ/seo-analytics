@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { HoverPrefetchLink } from "@/components/ui/hover-prefetch-link"
 import { Sparkline } from "@/components/dashboard/sparkline"
 import { TrendChip } from "@/components/dashboard/trend-chip"
 import { StatusDot } from "@/components/dashboard/status-dot"
@@ -69,7 +69,7 @@ export function DomainCard(props: DomainCardProps) {
     <div
       className={`relative h-full rounded-md border bg-card border-l-4 ${BORDER_COLOR[severity]} hover:shadow-md transition-shadow cursor-pointer group`}
     >
-      <Link
+      <HoverPrefetchLink
         href={`/domain/${id}`}
         aria-label={`Open ${hostname} dashboard`}
         className="absolute inset-0 z-0 rounded-md focus-visible:outline-2 focus-visible:outline-primary"
