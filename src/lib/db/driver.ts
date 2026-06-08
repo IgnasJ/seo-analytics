@@ -13,6 +13,22 @@ import { DatabaseSync, type StatementSync } from "node:sqlite"
 
 type Params = unknown[]
 
+/**
+ * `node:sqlite` returns result rows with a **null prototype** (unlike
+ * better-sqlite3, which this seam previously wrapped — it returned ordinary
+ * `Object.prototype` rows). React Server Components refuse to serialise
+ * null-prototype objects across the server→client boundary ("Only plain
+ * objects … can be passed to Client Components … null prototypes are not
+ * supported"), so passing a raw DB row as a prop to a `"use client"` component
+ * throws at render time. Re-shape every row into a plain object so callers can
+ * treat rows exactly as they did under better-sqlite3. The values are
+ * primitives (string / number / null / bigint / Uint8Array) so a shallow copy
+ * is sufficient. `null`/`undefined` (no row) passes through untouched.
+ */
+function toPlain<T>(row: T): T {
+  return row && typeof row === "object" ? { ...row } : row
+}
+
 export interface RunResult {
   changes: number
   lastInsertRowid: number | bigint
@@ -59,10 +75,11 @@ export class Database {
   query<T = unknown, _P extends Params = Params>(sql: string): Statement<T> {
     const stmt: StatementSync = this.inner.prepare(sql)
     return {
-      all: (...params: Params) => stmt.all(...(params as never[])) as T[],
+      all: (...params: Params) =>
+        (stmt.all(...(params as never[])) as T[]).map(toPlain),
       get: (...params: Params) => {
         const row = stmt.get(...(params as never[])) as T | undefined
-        return row ?? null
+        return row == null ? null : toPlain(row)
       },
       run: (...params: Params) => {
         const result = stmt.run(...(params as never[]))
