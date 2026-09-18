@@ -9,3 +9,17 @@
 allowBuilds:
   msw: false
   sharp: false
+
+# pnpm's default "isolated" linker makes node_modules/<pkg> a symlink into
+# node_modules/.pnpm, and each package's own deps live only next to its store
+# copy -- nothing is hoisted to the top level. `next build` (output:
+# "standalone") replicates those symlinks into .next/standalone/node_modules
+# using absolute build-machine paths, so the "standalone" folder is not
+# self-contained: deployed anywhere else, next/dist/.../console.js cannot
+# resolve its own dependency and the server dies on boot with
+#   Cannot find module '@swc/helpers/_/_interop_require_default'
+# Hoisted linking gives a flat node_modules of real files, which is what
+# output tracing needs to produce a genuinely portable standalone build.
+# NOTE: pnpm 11 only reads this from here -- `node-linker` in .npmrc is
+# silently ignored.
+nodeLinker: hoisted
