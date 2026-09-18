@@ -1,12 +1,22 @@
-import type { NextConfig } from "next"
+// Plain CommonJS on purpose -- do NOT convert back to next.config.ts.
+// The production host (Hostinger) runs glibc < 2.29, so @next/swc-linux-x64-gnu
+// fails to load and Next falls back to the WASM SWC bindings. That fallback
+// botches the next.config.ts transpile step, emitting an extensionless temp
+// file and dying with:
+//   Cannot find module '/.../<hash>.next.config' imported from next.config.compiled.js
+// A .js config needs no transpile, so it loads on the WASM path. Keeping this
+// CJS (package.json has no "type": "module") also keeps __dirname available.
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   output: "standalone",
-  // Pin the Turbopack root to this project. A stray pnpm-lock.yaml in the
-  // parent dir (C:\dev\projects) made Next.js infer the wrong workspace root,
-  // which compiled proxy.ts under `[project]/analytics/src/proxy.ts` but left
-  // it out of the middleware manifest -> "Cannot find the middleware module"
-  // and 404s on every route. Anchoring the root here fixes module resolution.
+  // Pin the file-tracing root to this project. A stray pnpm-lock.yaml in the
+  // parent dir (C:\dev\projects) makes Next.js infer the wrong workspace root.
+  // Under Turbopack that broke the middleware manifest; under webpack it skews
+  // which files get copied into .next/standalone. Anchor both explicitly.
+  outputFileTracingRoot: __dirname,
+  // Local `next dev` still uses Turbopack (native bindings exist on Windows),
+  // so this pin stays relevant for dev even though `build` runs webpack.
   turbopack: {
     root: __dirname,
   },
@@ -37,4 +47,4 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+module.exports = nextConfig
