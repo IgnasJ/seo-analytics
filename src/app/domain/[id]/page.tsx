@@ -4,9 +4,12 @@ import { getDomain } from "@/lib/db/queries/domains"
 import {
   getAnalyticsCache,
   getGscCache,
+  getGscQuerySnapshot,
   getIssuesCache,
   getLastSyncedAt,
 } from "@/lib/db/queries/cache"
+import { computeQueryMovers, type QuerySnapshot } from "@/lib/seo/movers"
+import { QueryMoversCard } from "@/components/search-console/query-movers"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MetricsOverview } from "@/components/analytics/metrics-overview"
@@ -69,6 +72,13 @@ export default async function DomainPage({
   const opportunities = gsc
     ? computeOpportunities(gsc.topQueries, gsc.queryPages)
     : []
+  // Query movers always compare the 7-day snapshot with the 30-day one, no
+  // matter which range the tab is showing. Null when the two snapshots can't
+  // be compared (never synced, or fetched at different times).
+  const queryMovers = computeQueryMovers(
+    getGscQuerySnapshot(db, domain.id, "7d") as QuerySnapshot | null,
+    getGscQuerySnapshot(db, domain.id, "1m") as QuerySnapshot | null
+  )
 
   const syncAgo = lastSyncedAt
     ? Math.round((Date.now() / 1000 - lastSyncedAt) / 3600)
@@ -191,6 +201,7 @@ export default async function DomainPage({
                   </CardContent>
                 </Card>
               </div>
+              {queryMovers && <QueryMoversCard movers={queryMovers} />}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">Top queries</CardTitle>

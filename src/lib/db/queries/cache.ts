@@ -49,6 +49,40 @@ export function getGscSummary(
 }
 
 /**
+ * The query list of a cached GSC report together with the dates it covers and
+ * when it was fetched — what the "query movers" comparison needs, without the
+ * page and query×page tables.
+ */
+export function getGscQuerySnapshot(
+  db: Database,
+  domainId: number,
+  dateRange: string
+): { queries: unknown; dates: string[]; syncedAt: number } | null {
+  const row = db
+    .query<
+      { queries: string | null; dates: string | null; synced_at: number },
+      [number, string]
+    >(
+      `SELECT json_extract(data_json, '$.topQueries') AS queries,
+              (SELECT json_group_array(json_extract(d.value, '$.date'))
+                 FROM json_each(data_json, '$.daily') AS d) AS dates,
+              synced_at
+         FROM gsc_cache
+        WHERE domain_id = ? AND date_range = ? AND json_valid(data_json)`
+    )
+    .get(domainId, dateRange)
+  if (!row) return null
+  const dates = parseFragment(row.dates)
+  return {
+    queries: parseFragment(row.queries) ?? [],
+    dates: Array.isArray(dates)
+      ? dates.filter((d): d is string => typeof d === "string")
+      : [],
+    syncedAt: row.synced_at,
+  }
+}
+
+/**
  * A cached GA4 report minus `topPages` (up to 200 rows that only the domain
  * detail page reads). Same motivation as getGscSummary.
  */
