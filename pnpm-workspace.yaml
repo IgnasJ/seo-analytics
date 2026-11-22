@@ -39,3 +39,10 @@ overrides:
   vite: ^8.1.6
   body-parser: ^2.3.0
   '@babel/core': ^7.29.6
+  # These two have no fix in the major their parents ask for, so they are
+  # forced across a major version. Neither runs in this app: glob (and its
+  # minimatch) only arrive via rimraf, which gaxios lists as a dependency but
+  # never imports, and the other minimatch belongs to the shadcn CLI's
+  # ts-morph. Re-check `npx shadcn` after changing these.
+  minimatch: ^11.0.1
+  glob: ^14.0.2
