@@ -4,21 +4,44 @@ import { Sparkline } from "./sparkline"
 import { TrendChip } from "./trend-chip"
 import { Hint } from "@/components/ui/hint"
 import { formatCompact } from "@/lib/format"
+import { useSearchParamSetter } from "@/hooks/use-search-param-setter"
+import {
+  HEALTH_PARAM,
+  ISSUES_PARAM,
+  type HealthFilter,
+} from "@/lib/dashboard-params"
 
 export interface KpiData {
   totalSessions: number
-  totalSessionsPrior: number
+  /** Daily sessions rate: last 7 days vs the baseline period (see lib/seo/trend). */
+  sessionsRecentRate: number | null
+  sessionsBaselineRate: number | null
   dailySessions: number[]
   totalClicks: number
-  totalClicksPrior: number
+  clicksRecentRate: number | null
+  clicksBaselineRate: number | null
   dailyClicks: number[]
   /** Impression-weighted average position across all domains. */
   avgPosition: number | null
-  avgPositionPrior: number | null
+  /** Same, for the last 7 days and for the baseline period. */
+  avgPositionRecent: number | null
+  avgPositionBaseline: number | null
+  /** Health counts — scoped to every filter *except* the health one, so the
+   *  pips keep showing what each of them would select. */
   healthy: number
   total: number
   amber: number
   red: number
+}
+
+interface Props {
+  data: KpiData
+  /** "the last 30 days" — the period the totals cover. */
+  periodPhrase: string
+  /** "30-day average" — what the trend chips compare the last week against. */
+  baselinePhrase: string
+  /** Health bucket currently selected via the pips, if any. */
+  healthFilter: HealthFilter | null
 }
 
 // Locale-stable across SSR and client. Server (Node) and browser locales
@@ -32,7 +55,15 @@ const formatNumber = (n: number) => formatCompact(n)
  * attribute; this component just defaults to hidden and reveals when the
  * sibling selector matches.
  */
-export function KpiStrip({ data }: { data: KpiData }) {
+export function KpiStrip({ data, periodPhrase, baselinePhrase, healthFilter }: Props) {
+  const trendExplainer = (
+    <div>
+      The trend chip compares the <strong>daily average of the last 7 days</strong>{" "}
+      against the <strong>{baselinePhrase}</strong>. Both are measured on days
+      that actually have data, so reporting lag doesn&apos;t skew it.
+    </div>
+  )
+
   return (
     <div
       // Visibility controlled via the body[data-kpi="on"] selector in
@@ -46,24 +77,17 @@ export function KpiStrip({ data }: { data: KpiData }) {
         labelTooltip={
           <div className="space-y-1">
             <div>
-              Sum of GA4 sessions across all your tracked domains over the
-              last 30 days.
+              Sum of GA4 sessions across the domains shown below over{" "}
+              {periodPhrase}.
             </div>
-            <div>
-              The trend chip compares your <strong>recent 7-day daily
-              average</strong> against your <strong>30-day daily average
-              baseline</strong>. A green ↑ means traffic is up vs your
-              normal pace.
-            </div>
+            {trendExplainer}
           </div>
         }
         value={formatNumber(data.totalSessions)}
         trend={
-          // Recent rate vs baseline rate. Comparing totals directly
-          // (1m vs 7d) is meaningless because 1m has 4× more days.
           <TrendChip
-            current={data.totalSessionsPrior / 7}
-            previous={data.totalSessions / 30}
+            current={data.sessionsRecentRate}
+            previous={data.sessionsBaselineRate}
             format="percent"
           />
         }
@@ -82,24 +106,21 @@ export function KpiStrip({ data }: { data: KpiData }) {
         labelTooltip={
           <div className="space-y-1">
             <div>
-              Sum of Search Console clicks across all your tracked domains
-              over the last 30 days.
+              Sum of Search Console clicks across the domains shown below over{" "}
+              {periodPhrase}.
             </div>
             <div>
               These are visitors who clicked through from Google search
               results — a subset of total sessions.
             </div>
-            <div>
-              Trend chip compares <strong>recent 7-day daily average</strong>
-              against the <strong>30-day daily average baseline</strong>.
-            </div>
+            {trendExplainer}
           </div>
         }
         value={formatNumber(data.totalClicks)}
         trend={
           <TrendChip
-            current={data.totalClicksPrior / 7}
-            previous={data.totalClicks / 30}
+            current={data.clicksRecentRate}
+            previous={data.clicksBaselineRate}
             format="percent"
           />
         }
@@ -118,7 +139,7 @@ export function KpiStrip({ data }: { data: KpiData }) {
         labelTooltip={
           <div className="space-y-1">
             <div>
-              Average Google search rank across all your domains, weighted by
+              Average Google search rank over {periodPhrase}, weighted by
               impressions so high-traffic sites count more than tiny ones.
             </div>
             <div>
@@ -134,22 +155,22 @@ export function KpiStrip({ data }: { data: KpiData }) {
               <div className="space-y-1">
                 <div>
                   Average Google search rank, weighted by impressions across
-                  all your domains. <strong>Lower is better.</strong>
+                  the domains shown. <strong>Lower is better.</strong>
                 </div>
                 <div>
-                  Compares your <strong>last 7 days</strong> against your{" "}
-                  <strong>30-day baseline</strong>. Green ↓ means your recent
+                  Compares your <strong>last 7 days</strong> against the{" "}
+                  <strong>{baselinePhrase}</strong>. Green ↓ means your recent
                   week is ranking better than normal; red ↑ means it slipped.
                 </div>
               </div>
             }
             className="cursor-help"
           >
-            {/* current = recent 7d, previous = 30d baseline. Smaller
+            {/* current = recent 7d, previous = baseline period. Smaller
                 "current" = improvement under lowerIsBetter. */}
             <TrendChip
-              current={data.avgPositionPrior}
-              previous={data.avgPosition}
+              current={data.avgPositionRecent}
+              previous={data.avgPositionBaseline}
               lowerIsBetter
               format="absolute"
               decimals={1}
@@ -167,13 +188,13 @@ export function KpiStrip({ data }: { data: KpiData }) {
               all sources linked, recent successful sync, no active issues.
             </div>
             <div>
-              The status dot on each card explains exactly why a domain is
-              amber or red. Hover the dot to see.
+              Click a coloured dot to show only the domains in that state;
+              click it again to clear.
             </div>
           </div>
         }
         value={`${data.healthy}/${data.total}`}
-        trend={<HealthBreakdown {...data} />}
+        trend={<HealthBreakdown {...data} selected={healthFilter} />}
         spark={null}
       />
     </div>
@@ -181,40 +202,56 @@ export function KpiStrip({ data }: { data: KpiData }) {
 }
 
 /**
- * Visual health breakdown — three colored pill indicators (green/amber/red)
- * with counts. Same colour vocabulary as the per-card status dots so the
- * KPI strip and the cards below it visually correspond. Zero-count buckets
- * render dimmed instead of being hidden, so the layout stays consistent
- * across reloads even as health shifts.
+ * Health breakdown — three coloured pips (green/amber/red) with counts, in the
+ * same colour vocabulary as the per-card status dots. Each pip is a toggle that
+ * narrows the dashboard to that bucket. Zero-count buckets render dimmed
+ * instead of being hidden, so the layout stays consistent across reloads even
+ * as health shifts.
  */
 function HealthBreakdown({
   healthy,
   amber,
   red,
+  selected,
 }: {
   healthy: number
   amber: number
   red: number
+  selected: HealthFilter | null
 }) {
+  const setParams = useSearchParamSetter()
+
+  function toggle(bucket: HealthFilter) {
+    // The pips refine what "Issues only" does coarsely, so picking one
+    // replaces that toggle rather than stacking on top of it.
+    setParams({
+      [HEALTH_PARAM]: selected === bucket ? null : bucket,
+      [ISSUES_PARAM]: null,
+    })
+  }
+
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex items-center gap-0.5">
       <HealthPip
         color="bg-green-500"
         label="healthy"
         count={healthy}
-        ariaLabel={`${healthy} healthy domains`}
+        active={selected === "green"}
+        onClick={() => toggle("green")}
       />
       <HealthPip
         color="bg-amber-500"
         label="warning"
         count={amber}
-        ariaLabel={`${amber} domains with warnings`}
+        active={selected === "amber"}
+        onClick={() => toggle("amber")}
       />
       <HealthPip
         color="bg-red-500"
         label="critical"
         count={red}
-        ariaLabel={`${red} critical domains`}
+        active={selected === "red"}
+        onClick={() => toggle("red")}
       />
     </span>
   )
@@ -224,23 +261,36 @@ function HealthPip({
   color,
   label,
   count,
-  ariaLabel,
+  active,
+  onClick,
 }: {
   color: string
   label: string
   count: number
-  ariaLabel: string
+  active: boolean
+  onClick: () => void
 }) {
-  const dim = count === 0
+  const dim = count === 0 && !active
   return (
-    <Hint text={count === 0 ? `0 ${label}` : `${count} ${label}`}>
-      <span
-        className={`inline-flex items-center gap-1 ${dim ? "opacity-30" : ""}`}
-        aria-label={ariaLabel}
+    <Hint
+      text={
+        active
+          ? `Showing ${label} domains only — click to clear`
+          : `${count} ${label} — click to show only these`
+      }
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        aria-label={`${count} ${label} domains`}
+        className={`inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors hover:bg-accent ${
+          active ? "bg-accent ring-1 ring-border" : ""
+        } ${dim ? "opacity-30" : ""}`}
       >
         <span className={`inline-block w-2 h-2 rounded-full ${color}`} />
         <span className="text-xs font-medium tabular-nums">{count}</span>
-      </span>
+      </button>
     </Hint>
   )
 }

@@ -20,6 +20,22 @@ import {
   sumDaily,
   weightedAvgPosition,
 } from "@/lib/seo/aggregates"
+import {
+  classifyTrend,
+  combineTrends,
+  hasEnoughVolume,
+  recentVsBaseline,
+  sumComparisons,
+  type RateComparison,
+  type TrendDirection,
+} from "@/lib/seo/trend"
+import {
+  DEFAULT_RANGE,
+  isDashboardRangeKey,
+  rangePhrase,
+  type DashboardRangeKey,
+} from "@/lib/date-range"
+import { parseHealthFilter, parseTrendFilter } from "@/lib/dashboard-params"
 import { Hint } from "@/components/ui/hint"
 import { DashboardFilters } from "@/components/dashboard/filters"
 import Link from "next/link"
@@ -33,26 +49,49 @@ type AnalyticsSummary = Pick<AnalyticsReport, "overview"> & {
 }
 type GscSummary = Partial<Pick<GscReport, "overview" | "daily">>
 
+/**
+ * What the trend chips compare the last 7 days against. It is the selected
+ * period itself, except for the 7-day period — a week can't be its own
+ * baseline, so that one is measured against the 30-day average.
+ */
+const BASELINE_RANGE: Record<DashboardRangeKey, DashboardRangeKey> = {
+  "7d": "1m",
+  "1m": "1m",
+  "90d": "90d",
+  "1y": "1y",
+}
+
+const BASELINE_PHRASE: Record<DashboardRangeKey, string> = {
+  "7d": "7-day average",
+  "1m": "30-day average",
+  "90d": "90-day average",
+  "1y": "12-month average",
+}
+
 interface DashboardCard {
   id: number
   hostname: string
   category_id: number
-  // Snapshots
+  // Snapshots for the selected period
   sessions: number | null
   clicks: number | null
-  position1m: number | null
-  position7d: number | null
-  // Series
+  position: number | null
+  // Position over the last 7 days and over the baseline period (trend chip)
+  positionRecent: number | null
+  positionBaseline: number | null
+  // Series for the selected period
   dailySessions: number[]
   dailyClicks: number[]
-  // Trend baseline (sums over the prior 7d for KPI strip)
-  sessions7d: number
-  clicks7d: number
+  // Last-7-days pace vs the baseline pace, per metric, and the combined verdict
+  sessionsTrend: RateComparison | null
+  clicksTrend: RateComparison | null
+  trend: TrendDirection | null
   // GSC impressions for the weighted-position KPI. Carried on the card so the
   // dashboard reads each domain's GSC cache once (during card build) instead of
   // re-reading + re-parsing it again while aggregating the KPI strip.
-  impressions1m: number
-  impressions7d: number
+  impressions: number
+  impressionsRecent: number
+  impressionsBaseline: number
   // Health signals
   ga4Linked: boolean
   gscLinked: boolean
@@ -66,12 +105,31 @@ interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
+/** Average position, or null when the report has no impressions behind it. */
+function positionOf(gsc: GscSummary | null): number | null {
+  const overview = gsc?.overview
+  if (!overview || !(overview.totalImpressions > 0)) return null
+  return overview.avgPosition
+}
+
 export default async function DashboardPage({ searchParams }: PageProps) {
   const sp = await searchParams
-  const rawCategory = Array.isArray(sp.category) ? sp.category[0] : sp.category
+  const rawCategory = first(sp.category)
   const selectedCategoryId =
     rawCategory && /^\d+$/.test(rawCategory) ? Number(rawCategory) : null
   const issuesOnly = sp.issues === "1"
+  const rawRange = first(sp.range)
+  const range: DashboardRangeKey = isDashboardRangeKey(rawRange)
+    ? rawRange
+    : (DEFAULT_RANGE as DashboardRangeKey)
+  const trendFilter = parseTrendFilter(first(sp.trend))
+  const healthFilter = parseHealthFilter(first(sp.health))
+
+  const baselineRange = BASELINE_RANGE[range]
 
   const db = getDb()
   const domains = listDomains(db)
@@ -80,10 +138,19 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const allCards: DashboardCard[] = domains.map((domain) => {
     // Summary readers return only overview + daily series: the cards never
     // touch the query / page tables, so there is no reason to JSON.parse them.
-    const analytics1m = getAnalyticsSummary(db, domain.id, "1m") as AnalyticsSummary | null
-    const gsc1m = getGscSummary(db, domain.id, "1m") as GscSummary | null
-    const gsc7d = getGscSummary(db, domain.id, "7d") as GscSummary | null
-    const analytics7d = getAnalyticsSummary(db, domain.id, "7d") as AnalyticsSummary | null
+    // Each cache row is read at most once, whichever roles it plays.
+    const analytics = getAnalyticsSummary(db, domain.id, range) as AnalyticsSummary | null
+    const gsc = getGscSummary(db, domain.id, range) as GscSummary | null
+    const analyticsBaseline =
+      baselineRange === range
+        ? analytics
+        : (getAnalyticsSummary(db, domain.id, baselineRange) as AnalyticsSummary | null)
+    const gscBaseline =
+      baselineRange === range
+        ? gsc
+        : (getGscSummary(db, domain.id, baselineRange) as GscSummary | null)
+    const gscRecent =
+      range === "7d" ? gsc : (getGscSummary(db, domain.id, "7d") as GscSummary | null)
     const issues = getIssuesCache(db, domain.id) as IssuesReport | null
     const latestSync = getLatestSync(db, domain.id)
     const lastSyncedAt = latestSync?.syncedAt ?? null
@@ -106,20 +173,33 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       issueCount,
     })
 
+    // GA4 ranges end "today", so the newest GA4 row is a partial day — leave
+    // it out of the pace comparison. Search Console rows are complete days.
+    const sessionsTrend = recentVsBaseline(
+      (analyticsBaseline?.daily ?? []).map((d) => ({ date: d.date, value: d.sessions })),
+      { dropLastDay: true }
+    )
+    const clicksTrend = recentVsBaseline(
+      (gscBaseline?.daily ?? []).map((d) => ({ date: d.date, value: d.clicks }))
+    )
+
     return {
       id: domain.id,
       hostname: domain.hostname,
       category_id: domain.category_id,
-      sessions: analytics1m?.overview?.sessions ?? null,
-      clicks: gsc1m?.overview?.totalClicks ?? null,
-      position1m: gsc1m?.overview?.avgPosition ?? null,
-      position7d: gsc7d?.overview?.avgPosition ?? null,
-      dailySessions: (analytics1m?.daily ?? []).map((d) => d.sessions),
-      dailyClicks: (gsc1m?.daily ?? []).map((d) => d.clicks),
-      sessions7d: analytics7d?.overview?.sessions ?? 0,
-      clicks7d: gsc7d?.overview?.totalClicks ?? 0,
-      impressions1m: gsc1m?.overview?.totalImpressions ?? 0,
-      impressions7d: gsc7d?.overview?.totalImpressions ?? 0,
+      sessions: analytics?.overview?.sessions ?? null,
+      clicks: gsc?.overview?.totalClicks ?? null,
+      position: positionOf(gsc),
+      positionRecent: positionOf(gscRecent),
+      positionBaseline: positionOf(gscBaseline),
+      dailySessions: (analytics?.daily ?? []).map((d) => d.sessions),
+      dailyClicks: (gsc?.daily ?? []).map((d) => d.clicks),
+      sessionsTrend,
+      clicksTrend,
+      trend: combineTrends([classifyTrend(sessionsTrend), classifyTrend(clicksTrend)]),
+      impressions: gsc?.overview?.totalImpressions ?? 0,
+      impressionsRecent: gscRecent?.overview?.totalImpressions ?? 0,
+      impressionsBaseline: gscBaseline?.overview?.totalImpressions ?? 0,
       ga4Linked,
       gscLinked,
       lastSyncedAt,
@@ -129,30 +209,39 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     }
   })
 
-  // Apply filters from URL search params. Both filters compose: e.g.
-  // ?category=2&issues=1 = "show only domains in category 2 that have at
-  // least one issue."
-  const filteredCards = allCards.filter((c) => {
-    if (selectedCategoryId !== null && c.category_id !== selectedCategoryId) {
-      return false
-    }
-    if (issuesOnly && c.severity === "green") return false
-    return true
-  })
+  // Filters from URL search params. They all compose: e.g.
+  // ?category=2&trend=down = "declining domains in category 2".
+  const inCategory = (c: DashboardCard) =>
+    selectedCategoryId === null || c.category_id === selectedCategoryId
+  const inHealth = (c: DashboardCard) =>
+    (!issuesOnly || c.severity !== "green") &&
+    (healthFilter === null || c.severity === healthFilter)
+  const inTrend = (c: DashboardCard) => trendFilter === null || c.trend === trendFilter
 
-  // Per-category counts include only the issues-only filter, so flipping
-  // categories via chips doesn't show 0s for visible options.
-  const issuesScopedCards = issuesOnly
-    ? allCards.filter((c) => c.severity !== "green")
-    : allCards
+  const filteredCards = allCards.filter(
+    (c) => inCategory(c) && inHealth(c) && inTrend(c)
+  )
+
+  // Each filter control shows counts for what it *would* select, so its
+  // counts are scoped by every filter except its own. Otherwise picking
+  // "Declining" would zero out the "Growing" count, and so on.
+  const categoryScope = allCards.filter((c) => inHealth(c) && inTrend(c))
+  const trendScope = allCards.filter((c) => inCategory(c) && inHealth(c))
+  const healthScope = allCards.filter((c) => inCategory(c) && inTrend(c))
+
   const categoryOptions = categories
     .map((c) => ({
       id: c.id,
       name: c.name,
-      count: issuesScopedCards.filter((card) => card.category_id === c.id).length,
+      count: categoryScope.filter((card) => card.category_id === c.id).length,
     }))
     // Hide categories with zero matches so the chip row stays compact.
     .filter((c) => c.count > 0)
+
+  const trendCounts = {
+    down: trendScope.filter((c) => c.trend === "down").length,
+    up: trendScope.filter((c) => c.trend === "up").length,
+  }
 
   // Group filtered cards by category, preserving sort order. Empty
   // categories drop out of the rendered view.
@@ -164,30 +253,50 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     .filter((g) => g.cards.length > 0)
 
   // KPI aggregates use the FILTERED card set so the strip reflects exactly
-  // what the user is currently looking at.
-  const counts = healthCounts(filteredCards.map((c) => c.severity))
+  // what the user is currently looking at. The health tile is the exception:
+  // its pips are filter controls, so it counts the health-agnostic scope.
+  const counts = healthCounts(healthScope.map((c) => c.severity))
+  // Summed over every card (small sites still contribute their share), but a
+  // total that is itself tiny gets no trend chip.
+  const shown = (pace: RateComparison | null) => (hasEnoughVolume(pace) ? pace : null)
+  const sessionsPace = shown(sumComparisons(filteredCards.map((c) => c.sessionsTrend)))
+  const clicksPace = shown(sumComparisons(filteredCards.map((c) => c.clicksTrend)))
+  const weighted = (
+    pick: (c: DashboardCard) => { position: number | null; impressions: number }
+  ) =>
+    weightedAvgPosition(
+      filteredCards
+        .map(pick)
+        .filter((p): p is { position: number; impressions: number } => p.position !== null)
+    )
   const kpi: KpiData = {
     totalSessions: filteredCards.reduce((s, c) => s + (c.sessions ?? 0), 0),
-    totalSessionsPrior: filteredCards.reduce((s, c) => s + c.sessions7d, 0),
+    sessionsRecentRate: sessionsPace?.recent ?? null,
+    sessionsBaselineRate: sessionsPace?.baseline ?? null,
     dailySessions: sumDaily(filteredCards.map((c) => c.dailySessions)),
     totalClicks: filteredCards.reduce((s, c) => s + (c.clicks ?? 0), 0),
-    totalClicksPrior: filteredCards.reduce((s, c) => s + c.clicks7d, 0),
+    clicksRecentRate: clicksPace?.recent ?? null,
+    clicksBaselineRate: clicksPace?.baseline ?? null,
     dailyClicks: sumDaily(filteredCards.map((c) => c.dailyClicks)),
-    avgPosition: weightedAvgPosition(
-      filteredCards
-        .filter((c) => c.position1m !== null)
-        .map((c) => ({ position: c.position1m!, impressions: c.impressions1m }))
-    ),
-    avgPositionPrior: weightedAvgPosition(
-      filteredCards
-        .filter((c) => c.position7d !== null)
-        .map((c) => ({ position: c.position7d!, impressions: c.impressions7d }))
-    ),
+    avgPosition: weighted((c) => ({ position: c.position, impressions: c.impressions })),
+    avgPositionRecent: weighted((c) => ({
+      position: c.positionRecent,
+      impressions: c.impressionsRecent,
+    })),
+    avgPositionBaseline: weighted((c) => ({
+      position: c.positionBaseline,
+      impressions: c.impressionsBaseline,
+    })),
     healthy: counts.green,
     amber: counts.amber,
     red: counts.red,
     total: counts.total,
   }
+
+  const periodPhrase = rangePhrase(range)
+  const baselinePhrase = BASELINE_PHRASE[baselineRange]
+  // Open a domain in the period the dashboard is showing.
+  const detailQuery = range === DEFAULT_RANGE ? "" : `?range=${range}`
 
   return (
     <div>
@@ -210,10 +319,24 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           issuesOnly={issuesOnly}
           filteredCount={filteredCards.length}
           totalCount={allCards.length}
+          range={range}
+          trend={trendFilter}
+          trendCounts={trendCounts}
+          healthFilterActive={healthFilter !== null}
         />
       )}
 
-      {filteredCards.length > 0 && <KpiStrip data={kpi} />}
+      {/* Rendered whenever there are domains at all, even if the current
+          filters match none: the health pips inside are how the user gets
+          back out of a health filter. */}
+      {allCards.length > 0 && (
+        <KpiStrip
+          data={kpi}
+          periodPhrase={periodPhrase}
+          baselinePhrase={baselinePhrase}
+          healthFilter={healthFilter}
+        />
+      )}
 
       {allCards.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
@@ -243,7 +366,28 @@ export default async function DashboardPage({ searchParams }: PageProps) {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {cards.map((card) => (
-                  <DomainCard key={card.id} {...card} />
+                  <DomainCard
+                    key={card.id}
+                    id={card.id}
+                    hostname={card.hostname}
+                    href={`/domain/${card.id}${detailQuery}`}
+                    periodPhrase={periodPhrase}
+                    baselinePhrase={baselinePhrase}
+                    dailySessions={card.dailySessions}
+                    dailyClicks={card.dailyClicks}
+                    sessions={card.sessions}
+                    clicks={card.clicks}
+                    sessionsTrend={shown(card.sessionsTrend)}
+                    clicksTrend={shown(card.clicksTrend)}
+                    position={card.position}
+                    positionRecent={card.positionRecent}
+                    positionBaseline={card.positionBaseline}
+                    ga4Linked={card.ga4Linked}
+                    gscLinked={card.gscLinked}
+                    lastSyncedAt={card.lastSyncedAt}
+                    lastSyncStatus={card.lastSyncStatus}
+                    issueCount={card.issueCount}
+                  />
                 ))}
               </div>
             </section>

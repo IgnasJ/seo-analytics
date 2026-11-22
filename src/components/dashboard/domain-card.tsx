@@ -6,19 +6,30 @@ import { SyncIcon } from "@/components/dashboard/sync-icon"
 import { Hint } from "@/components/ui/hint"
 import { cardHealth, type Severity } from "@/lib/seo/health"
 import { formatCompact } from "@/lib/format"
+import type { RateComparison } from "@/lib/seo/trend"
 
 export interface DomainCardProps {
   id: number
   hostname: string
-  /** Cached series — last ~30 days. */
+  /** Where the card links to (the domain page, in the period being shown). */
+  href: string
+  /** "the last 30 days" — the period every number on the card covers. */
+  periodPhrase: string
+  /** "30-day average" — what the trend chips compare the last week against. */
+  baselinePhrase: string
+  /** Cached daily series for the selected period. */
   dailySessions: number[]
   dailyClicks: number[]
-  /** Snapshot metric values. */
+  /** Snapshot metric values for the selected period. */
   sessions: number | null
   clicks: number | null
-  /** Avg position over the current (1m) range and the 7d range, for the trend chip. */
-  position1m: number | null
-  position7d: number | null
+  /** Daily pace over the last 7 days vs the baseline period, per metric. */
+  sessionsTrend: RateComparison | null
+  clicksTrend: RateComparison | null
+  /** Avg position over the selected period, the last 7 days, and the baseline period. */
+  position: number | null
+  positionRecent: number | null
+  positionBaseline: number | null
   /** Health signals fed into cardHealth. */
   ga4Linked: boolean
   gscLinked: boolean
@@ -41,12 +52,18 @@ export function DomainCard(props: DomainCardProps) {
   const {
     id,
     hostname,
+    href,
+    periodPhrase,
+    baselinePhrase,
     dailySessions,
     dailyClicks,
     sessions,
     clicks,
-    position1m,
-    position7d,
+    sessionsTrend,
+    clicksTrend,
+    position,
+    positionRecent,
+    positionBaseline,
     ga4Linked,
     gscLinked,
     lastSyncedAt,
@@ -70,7 +87,7 @@ export function DomainCard(props: DomainCardProps) {
       className={`relative h-full rounded-md border bg-card border-l-4 ${BORDER_COLOR[severity]} hover:shadow-md transition-shadow cursor-pointer group`}
     >
       <HoverPrefetchLink
-        href={`/domain/${id}`}
+        href={href}
         aria-label={`Open ${hostname} dashboard`}
         className="absolute inset-0 z-0 rounded-md focus-visible:outline-2 focus-visible:outline-primary"
       />
@@ -96,22 +113,30 @@ export function DomainCard(props: DomainCardProps) {
             labelTooltip={
               <div className="space-y-1">
                 <div>
-                  <strong>Sessions</strong> — visits to the site over the last
-                  30 days, from Google Analytics 4.
+                  <strong>Sessions</strong> — visits to the site over{" "}
+                  {periodPhrase}, from Google Analytics 4.
                 </div>
                 <div>
                   Sparkline shows daily session counts; auto-scaled to this
                   card&apos;s own range.
                 </div>
+                <div>
+                  The arrow compares the daily average of the{" "}
+                  <strong>last 7 days</strong> with the{" "}
+                  <strong>{baselinePhrase}</strong>.
+                </div>
               </div>
             }
             value={formatNumber(sessions)}
             spark={
-              <Sparkline
-                values={dailySessions}
-                className="text-blue-500"
-                ariaLabel="Sessions trend"
-              />
+              <PaceAndSpark pace={sessionsTrend}>
+                <Sparkline
+                  values={dailySessions}
+                  width={64}
+                  className="text-blue-500"
+                  ariaLabel="Sessions trend"
+                />
+              </PaceAndSpark>
             }
           />
           <MetricRow
@@ -120,22 +145,30 @@ export function DomainCard(props: DomainCardProps) {
               <div className="space-y-1">
                 <div>
                   <strong>Clicks</strong> — visitors who clicked through from
-                  Google Search results in the last 30 days, from Search
+                  Google Search results over {periodPhrase}, from Search
                   Console.
                 </div>
                 <div>
                   Different from sessions: clicks count Google→site arrivals
                   only; sessions count all traffic.
                 </div>
+                <div>
+                  The arrow compares the daily average of the{" "}
+                  <strong>last 7 days</strong> with the{" "}
+                  <strong>{baselinePhrase}</strong>.
+                </div>
               </div>
             }
             value={formatNumber(clicks)}
             spark={
-              <Sparkline
-                values={dailyClicks}
-                className="text-emerald-500"
-                ariaLabel="Clicks trend"
-              />
+              <PaceAndSpark pace={clicksTrend}>
+                <Sparkline
+                  values={dailyClicks}
+                  width={64}
+                  className="text-emerald-500"
+                  ariaLabel="Clicks trend"
+                />
+              </PaceAndSpark>
             }
           />
           <MetricRow
@@ -144,7 +177,7 @@ export function DomainCard(props: DomainCardProps) {
               <div className="space-y-1">
                 <div>
                   <strong>Position</strong> — average rank in Google search
-                  results across all queries in the last 30 days.
+                  results across all queries over {periodPhrase}.
                 </div>
                 <div>
                   <strong>Lower is better.</strong> Position 1–3 = top of page
@@ -152,15 +185,14 @@ export function DomainCard(props: DomainCardProps) {
                 </div>
               </div>
             }
-            value={position1m !== null ? position1m.toFixed(1) : "—"}
+            value={position !== null ? position.toFixed(1) : "—"}
             spark={
               <Hint
                 text={
                   <div className="space-y-1">
                     <div>
-                      Compares your <strong>last 7 days</strong> against your{" "}
-                      <strong>30-day baseline</strong>. Both are simple
-                      averages of the per-query positions in their period.
+                      Compares your <strong>last 7 days</strong> against the{" "}
+                      <strong>{baselinePhrase}</strong>.
                     </div>
                     <div>
                       Green ↓ means your recent week is ranking better than
@@ -172,11 +204,11 @@ export function DomainCard(props: DomainCardProps) {
                 className="inline-flex pointer-events-auto"
               >
                 <span className="cursor-help">
-                  {/* current = recent 7-day average, previous = 30-day
-                      baseline — so a smaller "current" is an improvement. */}
+                  {/* current = recent 7-day average, previous = baseline
+                      period — so a smaller "current" is an improvement. */}
                   <TrendChip
-                    current={position7d}
-                    previous={position1m}
+                    current={positionRecent}
+                    previous={positionBaseline}
                     lowerIsBetter
                     format="absolute"
                     decimals={1}
@@ -188,6 +220,28 @@ export function DomainCard(props: DomainCardProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Trend chip + sparkline for a traffic metric. The chip is omitted when there
+ * is no comparison to show (new or unlinked domain) so those cards don't fill
+ * up with placeholder dashes.
+ */
+function PaceAndSpark({
+  pace,
+  children,
+}: {
+  pace: RateComparison | null
+  children: React.ReactNode
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {pace && (
+        <TrendChip current={pace.recent} previous={pace.baseline} format="percent" />
+      )}
+      {children}
+    </span>
   )
 }
 
