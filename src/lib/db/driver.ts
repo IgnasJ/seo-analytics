@@ -40,8 +40,24 @@ export interface Statement<T> {
   run(...params: Params): RunResult
 }
 
+// Upper bound on cached prepared statements. Almost all SQL in this codebase is
+// a fixed string, so the cache settles at a few dozen entries; the cap only
+// guards against unbounded growth from dynamically composed WHERE clauses.
+const MAX_CACHED_STATEMENTS = 200
+
+// Statements that can change table shapes.
+const DDL_PATTERN = /^\s*(ALTER|CREATE|DROP)\b/i
+
 export class Database {
   private readonly inner: DatabaseSync
+  // SQL text -> prepared statement. Without this every query re-parsed and
+  // re-planned its SQL on each call (dozens of times per dashboard render).
+  //
+  // The cache is dropped whenever the schema may have changed (see exec / run):
+  // a statement prepared before `ALTER TABLE ... ADD COLUMN` keeps reporting
+  // its old column set for `SELECT *` under node:sqlite, so reusing it after a
+  // migration would silently hide the new column.
+  private readonly statements = new Map<string, StatementSync>()
 
   constructor(path: string, _opts?: { create?: boolean }) {
     // Match better-sqlite3's defaults: open read-write (creating the file when
@@ -52,9 +68,24 @@ export class Database {
     this.inner = new DatabaseSync(path, { enableForeignKeyConstraints: false })
   }
 
+  private prepare(sql: string): StatementSync {
+    let stmt = this.statements.get(sql)
+    if (!stmt) {
+      if (this.statements.size >= MAX_CACHED_STATEMENTS) this.statements.clear()
+      stmt = this.inner.prepare(sql)
+      this.statements.set(sql, stmt)
+    }
+    return stmt
+  }
+
   /** Execute a parameterised statement once. Mirrors bun:sqlite's `db.run`. */
   run(sql: string, params: Params = []): RunResult {
-    const result = this.inner.prepare(sql).run(...(params as never[]))
+    // Schema-changing statements run once: don't cache them, and invalidate
+    // everything prepared against the old schema.
+    const isDdl = DDL_PATTERN.test(sql)
+    const stmt = isDdl ? this.inner.prepare(sql) : this.prepare(sql)
+    const result = stmt.run(...(params as never[]))
+    if (isDdl) this.statements.clear()
     return {
       changes: Number(result.changes),
       lastInsertRowid: result.lastInsertRowid,
@@ -64,6 +95,9 @@ export class Database {
   /** Execute a multi-statement script (no parameters). */
   exec(sql: string): void {
     this.inner.exec(sql)
+    // Scripts are how the schema and migrations are applied; assume any of
+    // them may have changed table shapes.
+    this.statements.clear()
   }
 
   /**
@@ -73,7 +107,7 @@ export class Database {
    * params tuple is unused at runtime, kept for source compatibility.
    */
   query<T = unknown, _P extends Params = Params>(sql: string): Statement<T> {
-    const stmt: StatementSync = this.inner.prepare(sql)
+    const stmt: StatementSync = this.prepare(sql)
     return {
       all: (...params: Params) =>
         (stmt.all(...(params as never[])) as T[]).map(toPlain),
@@ -92,6 +126,7 @@ export class Database {
   }
 
   close(): void {
+    this.statements.clear()
     this.inner.close()
   }
 }

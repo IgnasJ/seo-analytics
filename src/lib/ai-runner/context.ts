@@ -4,16 +4,44 @@ import type { AuditResult } from "@/types/audit"
 import type { GscReport } from "@/types/search-console"
 import { getGscCache } from "@/lib/db/queries/cache"
 
-async function fetchPageMeta(url: string): Promise<PageContext | null> {
+const PAGE_FETCH_TIMEOUT_MS = 8000
+// <title>, <h1> and the meta description live near the top of the document;
+// half a megabyte is far more than enough and bounds memory on huge pages.
+const PAGE_FETCH_MAX_BYTES = 512 * 1024
+
+/**
+ * Read at most `maxBytes` of a response body as text, then stop the download.
+ */
+async function readCapped(res: Response, maxBytes: number): Promise<string> {
+  if (!res.body) return ""
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let text = ""
+  let received = 0
   try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 8000)
+    while (received < maxBytes) {
+      const { done, value } = await reader.read()
+      if (done) break
+      received += value.byteLength
+      text += decoder.decode(value, { stream: true })
+    }
+  } finally {
+    reader.cancel().catch(() => {})
+  }
+  return text
+}
+
+async function fetchPageMeta(url: string): Promise<PageContext | null> {
+  // The timer stays armed until the body is read: it used to be cleared as
+  // soon as headers arrived, so a slow or endless body could hang the request.
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PAGE_FETCH_TIMEOUT_MS)
+  try {
     const res = await fetch(url, {
       signal: controller.signal,
       headers: { "User-Agent": "SEO-Analytics-Bot/1.0" },
     })
-    clearTimeout(timeout)
-    const html = await res.text()
+    const html = await readCapped(res, PAGE_FETCH_MAX_BYTES)
 
     const title = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim() ?? null
     const h1 = html.match(/<h1[^>]*>([^<]*)<\/h1>/i)?.[1]?.trim() ?? null
@@ -25,6 +53,8 @@ async function fetchPageMeta(url: string): Promise<PageContext | null> {
     return { title, h1, metaDescription }
   } catch {
     return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 

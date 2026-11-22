@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getDb } from "@/lib/db"
-import { listAuditsFiltered } from "@/lib/db/queries/audits"
+import { listAuditsForSummary } from "@/lib/db/queries/audits"
 import { summariseAudits } from "@/lib/audit/aggregates"
 
 const HARD_LIMIT = 500
@@ -16,14 +16,8 @@ export function GET(req: NextRequest) {
   const sinceUnix = Math.floor(Date.now() / 1000) - days * 86400
 
   const db = getDb()
-  // Only "done" rows have scores to roll up; the aggregator drops the rest
-  // defensively anyway but filtering at the SQL layer means we don't ship
-  // hundreds of useless error rows through JSON.parse.
-  const { rows } = listAuditsFiltered(db, {
-    status: "done",
-    sinceUnix,
-    limit: HARD_LIMIT,
-    offset: 0,
-  })
+  // Only "done" rows have scores to roll up, and the query pre-reduces each
+  // row to its scores + failing entries so we never JSON.parse full results.
+  const rows = listAuditsForSummary(db, sinceUnix, HARD_LIMIT)
   return NextResponse.json({ days, ...summariseAudits(rows, { topN: 5 }) })
 }

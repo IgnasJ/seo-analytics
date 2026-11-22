@@ -1,6 +1,7 @@
 import { google } from "googleapis"
 import type { GscReport, QueryRow, GscPageRow, DailyGscRow, PositionBuckets, QueryPageRow, IssuesReport, SitemapInfo, CwvMetric } from "@/types/search-console"
 import { recordApiCall } from "@/lib/db/queries/api-usage"
+import { GOOGLE_REQUEST_OPTIONS, GOOGLE_REQUEST_TIMEOUT_MS } from "./request-options"
 
 export async function fetchGSCReport(
   siteUrl: string,
@@ -24,7 +25,7 @@ export async function fetchGSCReport(
         rowLimit: 500,
         aggregationType: "byPage",
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
     webmasters.searchanalytics.query({
       siteUrl,
       requestBody: {
@@ -33,7 +34,7 @@ export async function fetchGSCReport(
         dimensions: ["page"],
         rowLimit: 500,
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
     webmasters.searchanalytics.query({
       siteUrl,
       requestBody: {
@@ -42,7 +43,7 @@ export async function fetchGSCReport(
         dimensions: ["date"],
         rowLimit: 500,
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
     webmasters.searchanalytics.query({
       siteUrl,
       requestBody: {
@@ -52,14 +53,11 @@ export async function fetchGSCReport(
         rowLimit: 1000,
         aggregationType: "byPage",
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
   ])
 
   // Four GSC searchanalytics calls above run concurrently.
-  recordApiCall("gsc")
-  recordApiCall("gsc")
-  recordApiCall("gsc")
-  recordApiCall("gsc")
+  recordApiCall("gsc", undefined, 4)
 
   const queryRows: QueryRow[] = (queriesRes.data.rows ?? []).map((r) => ({
     query: r.keys?.[0] ?? "",
@@ -92,13 +90,10 @@ export async function fetchGSCReport(
     position: r.position ?? 0,
   }))
 
-  const totalClicks = queryRows.reduce((s, r) => s + r.clicks, 0)
-  const totalImpressions = queryRows.reduce((s, r) => s + r.impressions, 0)
-  const avgCtr = totalImpressions > 0 ? totalClicks / totalImpressions : 0
-  const avgPosition =
-    queryRows.length > 0
-      ? queryRows.reduce((s, r) => s + r.position, 0) / queryRows.length
-      : 0
+  const { totalClicks, totalImpressions, avgCtr, avgPosition } = computeGscOverview(
+    dailyRes.data.rows ?? [],
+    queryRows
+  )
 
   const positionBuckets: PositionBuckets = {
     top3: queryRows.filter((r) => r.position <= 3).length,
@@ -117,12 +112,55 @@ export async function fetchGSCReport(
   }
 }
 
+interface RawGscRow {
+  clicks?: number | null
+  impressions?: number | null
+  position?: number | null
+}
+
+/**
+ * Site-level headline numbers for a GSC report.
+ *
+ * Totals come from the per-day rows, which cover *all* search traffic. They
+ * used to be summed over the top-500 query rows, which under-reports: Search
+ * Console withholds anonymised queries from the query dimension and the list
+ * is truncated at 500, so sites with a long tail showed a fraction of their
+ * real clicks. Average position is impression-weighted (the definition Search
+ * Console itself uses) rather than a plain mean over query rows, where a
+ * one-impression query counted as much as a ten-thousand-impression one.
+ *
+ * Falls back to the query rows when no daily rows came back.
+ */
+export function computeGscOverview(
+  dailyRows: RawGscRow[],
+  queryRows: QueryRow[]
+): GscReport["overview"] {
+  const source: RawGscRow[] = dailyRows.length > 0 ? dailyRows : queryRows
+
+  let totalClicks = 0
+  let totalImpressions = 0
+  let weightedPosition = 0
+  for (const r of source) {
+    const impressions = r.impressions ?? 0
+    totalClicks += r.clicks ?? 0
+    totalImpressions += impressions
+    weightedPosition += (r.position ?? 0) * impressions
+  }
+
+  return {
+    totalClicks,
+    totalImpressions,
+    avgCtr: totalImpressions > 0 ? totalClicks / totalImpressions : 0,
+    avgPosition: totalImpressions > 0 ? weightedPosition / totalImpressions : 0,
+  }
+}
+
 export async function fetchSitemaps(siteUrl: string, accessToken: string): Promise<SitemapInfo[]> {
   const auth = new google.auth.OAuth2()
   auth.setCredentials({ access_token: accessToken })
   const webmasters = google.webmasters({ version: "v3", auth })
 
-  const res = await webmasters.sitemaps.list({ siteUrl })
+  const res = await webmasters.sitemaps.list({ siteUrl }, GOOGLE_REQUEST_OPTIONS)
   recordApiCall("gsc")
   return (res.data.sitemap ?? []).map((s) => ({
     path: s.path ?? "",
@@ -134,11 +172,16 @@ export async function fetchSitemaps(siteUrl: string, accessToken: string): Promi
 }
 
 export async function fetchCrUX(origin: string, cruxApiKey: string): Promise<IssuesReport["cwv"]> {
-  const url = `https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=${cruxApiKey}`
+  // No key configured: the API would only answer 4xx, so don't spend a request
+  // (and a quota tick) on it.
+  if (!cruxApiKey) return { lcp: null, cls: null, inp: null }
+
+  const url = `https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=${encodeURIComponent(cruxApiKey)}`
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ origin, formFactor: "PHONE" }),
+    signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS),
   })
 
   recordApiCall("crux")
@@ -173,13 +216,16 @@ export async function discoverProperties(
   const webmastersClient = google.webmasters({ version: "v3", auth })
 
   const [accountsRes, sitesRes] = await Promise.all([
-    adminClient.accounts.list({}),
-    webmastersClient.sites.list(),
+    adminClient.accounts.list({}, GOOGLE_REQUEST_OPTIONS),
+    webmastersClient.sites.list({}, GOOGLE_REQUEST_OPTIONS),
   ])
 
   const ga4Properties: { id: string; displayName: string }[] = []
   for (const account of accountsRes.data.accounts ?? []) {
-    const propsRes = await adminClient.properties.list({ filter: `parent:${account.name}` })
+    const propsRes = await adminClient.properties.list(
+      { filter: `parent:${account.name}` },
+      GOOGLE_REQUEST_OPTIONS
+    )
     for (const prop of propsRes.data.properties ?? []) {
       ga4Properties.push({ id: prop.name!, displayName: prop.displayName ?? prop.name! })
     }

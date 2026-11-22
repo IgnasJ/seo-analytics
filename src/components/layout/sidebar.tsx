@@ -28,9 +28,6 @@ export function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Login page renders standalone — no sidebar chrome.
-  if (pathname === "/login") return null
-
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
     setMobileOpen(false)
@@ -48,6 +45,12 @@ export function Sidebar() {
       document.body.style.overflow = ""
     }
   }, [mobileOpen])
+
+  // Login page renders standalone — no sidebar chrome. This return must stay
+  // *below* the hooks above: returning before them changes the hook count
+  // whenever a client-side navigation crosses /login (e.g. the proxy bouncing
+  // an expired session), which React treats as a fatal render error.
+  if (pathname === "/login") return null
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" })

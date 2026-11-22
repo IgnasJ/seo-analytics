@@ -6,10 +6,33 @@ import type {
   AuditStrategy,
 } from "@/types/audit"
 
+/**
+ * Column list for *list* queries. A stored `result_json` averages ~57 KB (the
+ * full Lighthouse entry list plus a ~20 KB base64 screenshot), but list views
+ * only render score pills. Selecting `*` shipped megabytes through
+ * SQLite -> V8 -> JSON -> the browser on every 5 s status poll.
+ *
+ * This projection replaces `result_json` with a ~150-byte JSON document that
+ * holds just `scores`, `strategy` and `finalUrl`, so existing callers that do
+ * `JSON.parse(row.result_json).scores` keep working unchanged. Anything that
+ * needs the full result (entry list, CWV, screenshot) must load the row via
+ * getAudit / listAuditsForUrl instead.
+ */
+const SLIM_AUDIT_COLUMNS = `
+  id, url, status, requested_at, completed_at, error_message, strategy,
+  CASE WHEN result_json IS NOT NULL AND json_valid(result_json) THEN
+    json_object(
+      'scores', json_extract(result_json, '$.scores'),
+      'strategy', json_extract(result_json, '$.strategy'),
+      'finalUrl', json_extract(result_json, '$.finalUrl')
+    )
+  END AS result_json`
+
+/** Newest audits as slim rows (see SLIM_AUDIT_COLUMNS). */
 export function listAudits(db: Database, limit: number = 50): Audit[] {
   return db
     .query<Audit, [number]>(
-      "SELECT * FROM audits ORDER BY requested_at DESC LIMIT ?"
+      `SELECT ${SLIM_AUDIT_COLUMNS} FROM audits ORDER BY requested_at DESC LIMIT ?`
     )
     .all(limit)
 }
@@ -23,12 +46,11 @@ export function createAudit(
   url: string,
   strategy: AuditStrategy = "mobile"
 ): Audit {
-  db.run("INSERT INTO audits (url, strategy) VALUES (?, ?)", [url, strategy])
-  const row = db
-    .query<Audit, []>(
-      "SELECT * FROM audits ORDER BY id DESC LIMIT 1"
-    )
-    .get()
+  const { lastInsertRowid } = db.run(
+    "INSERT INTO audits (url, strategy) VALUES (?, ?)",
+    [url, strategy]
+  )
+  const row = getAudit(db, Number(lastInsertRowid))
   if (!row) throw new Error("Failed to create audit")
   return row
 }
@@ -77,7 +99,7 @@ export function listAuditsForHostname(
       .get(a, b, c, d)?.c ?? 0
   const rows = db
     .query<Audit, [string, string, string, string, number, number]>(
-      `SELECT * FROM audits WHERE ${where} ORDER BY requested_at DESC LIMIT ? OFFSET ?`
+      `SELECT ${SLIM_AUDIT_COLUMNS} FROM audits WHERE ${where} ORDER BY requested_at DESC LIMIT ? OFFSET ?`
     )
     .all(a, b, c, d, limit, offset)
   return { rows, total }
@@ -136,11 +158,53 @@ export function listAuditsFiltered(
 
   const rows = db
     .query<Audit, (string | number)[]>(
-      `SELECT * FROM audits ${whereSql} ORDER BY requested_at DESC LIMIT ? OFFSET ?`
+      `SELECT ${SLIM_AUDIT_COLUMNS} FROM audits ${whereSql} ORDER BY requested_at DESC LIMIT ? OFFSET ?`
     )
     .all(...params, opts.limit, opts.offset)
 
   return { rows, total }
+}
+
+/**
+ * Completed audits since `sinceUnix`, shaped for summariseAudits().
+ *
+ * The roll-up only reads each audit's four scores and its *failing* entries, so
+ * SQLite builds exactly that (`{scores, audits:[failing...]}`, ~1-2 KB) instead
+ * of handing ~57 KB per row to JSON.parse — the previous approach read up to
+ * 500 full rows (~28 MB) per summary request.
+ */
+export function listAuditsForSummary(
+  db: Database,
+  sinceUnix: number,
+  limit: number
+): Audit[] {
+  return db
+    .query<Audit, [number, number]>(
+      `SELECT id, url, status, requested_at, completed_at, error_message, strategy,
+              json_object(
+                'scores', json_extract(result_json, '$.scores'),
+                'audits', (
+                  SELECT json_group_array(
+                           json_object(
+                             'id', json_extract(e.value, '$.id'),
+                             'title', json_extract(e.value, '$.title'),
+                             'category', json_extract(e.value, '$.category'),
+                             'severity', 'fail'
+                           )
+                         )
+                    FROM json_each(result_json, '$.audits') AS e
+                   WHERE json_extract(e.value, '$.severity') = 'fail'
+                )
+              ) AS result_json
+         FROM audits
+        WHERE status = 'done'
+          AND requested_at >= ?
+          AND result_json IS NOT NULL
+          AND json_valid(result_json)
+        ORDER BY requested_at DESC
+        LIMIT ?`
+    )
+    .all(sinceUnix, limit)
 }
 
 export interface UrlGroupRow {
@@ -209,7 +273,7 @@ export function listAuditGroupsFiltered(
   // do one query per URL — N is bounded by the page size (small).
   const rows: UrlGroupRow[] = []
   const stmt = db.query<Audit, [string, number]>(
-    "SELECT * FROM audits WHERE url = ? AND requested_at = ? LIMIT 1"
+    `SELECT ${SLIM_AUDIT_COLUMNS} FROM audits WHERE url = ? AND requested_at = ? LIMIT 1`
   )
   for (const u of urls) {
     const latest = stmt.get(u.url, u.max_ts)
@@ -308,7 +372,7 @@ export function listAuditDomainGroupsFiltered(
   if (page.length === 0) return { rows: [], total }
 
   const stmt = db.query<Audit, [string, number]>(
-    "SELECT * FROM audits WHERE url = ? AND requested_at = ? LIMIT 1"
+    `SELECT ${SLIM_AUDIT_COLUMNS} FROM audits WHERE url = ? AND requested_at = ? LIMIT 1`
   )
   const rows: DomainGroupRow[] = []
   for (const acc of page) {

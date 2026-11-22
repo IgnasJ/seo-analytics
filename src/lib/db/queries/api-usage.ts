@@ -51,12 +51,15 @@ function utcMonthPrefix(date: Date = new Date()): string {
  * outside the request scope (e.g. background runners) can call this without
  * threading the DB handle through.
  */
-export function recordApiCall(api: ApiName, db?: Database): void {
+export function recordApiCall(api: ApiName, db?: Database, count: number = 1): void {
+  if (!(count > 0)) return
   const target = db ?? getDb()
+  // `count` lets a fetcher that fired several requests at once account for
+  // them with one write instead of one write per request.
   target.run(
-    `INSERT INTO api_call_counts (api, day, count) VALUES (?, ?, 1)
-     ON CONFLICT(api, day) DO UPDATE SET count = count + 1`,
-    [api, utcDay()]
+    `INSERT INTO api_call_counts (api, day, count) VALUES (?, ?, ?)
+     ON CONFLICT(api, day) DO UPDATE SET count = count + excluded.count`,
+    [api, utcDay(), count]
   )
 }
 

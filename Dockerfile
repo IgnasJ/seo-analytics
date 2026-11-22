@@ -10,6 +10,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+# The runner stage copies /app/public. The repo has no public/ directory (git
+# doesn't track empty ones), so make sure it exists or that COPY fails the build.
+RUN mkdir -p public
 RUN pnpm run build
 
 

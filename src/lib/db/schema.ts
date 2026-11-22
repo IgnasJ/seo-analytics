@@ -35,6 +35,8 @@ export const SCHEMA_SQL = `
     status TEXT NOT NULL DEFAULT 'success',
     error_message TEXT
   );
+  CREATE INDEX IF NOT EXISTS idx_sync_log_domain
+    ON sync_log(domain_id, synced_at DESC, id DESC);
 
   CREATE TABLE IF NOT EXISTS analytics_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

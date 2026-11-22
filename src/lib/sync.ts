@@ -19,13 +19,24 @@ const DATE_RANGES = [
   { key: "1y", startDate: () => formatDate(daysAgo(365)), endDate: () => formatDate(new Date()) },
 ]
 
+// Search Console data lags by two to three days, so the single-day "today" and
+// "yesterday" windows always come back empty (verified against the cache: 0
+// rows for every domain). Skipping them saves 8 of the 24 search-analytics
+// requests per domain on every sync. GA4 does report same-day data, so it
+// keeps all six ranges.
+const GSC_SKIPPED_RANGES = new Set(["today", "yesterday"])
+const GSC_DATE_RANGES = DATE_RANGES.filter((r) => !GSC_SKIPPED_RANGES.has(r.key))
+
 function formatDate(d: Date): string {
   return d.toISOString().split("T")[0]
 }
 
+// formatDate renders the UTC calendar date, so the day arithmetic has to be in
+// UTC as well. Mixing local-time setDate with a UTC render shifted every range
+// by a day around midnight on servers whose timezone isn't UTC.
 function daysAgo(n: number): Date {
   const d = new Date()
-  d.setDate(d.getDate() - n)
+  d.setUTCDate(d.getUTCDate() - n)
   return d
 }
 
@@ -150,9 +161,9 @@ async function syncGscStage(
   accessToken: string,
   recordFailure: FailureSink
 ): Promise<void> {
-  for (let i = 0; i < DATE_RANGES.length; i++) {
+  for (let i = 0; i < GSC_DATE_RANGES.length; i++) {
     if (i > 0) await sleep(API_CALL_DELAY_MS)
-    const range = DATE_RANGES[i]
+    const range = GSC_DATE_RANGES[i]
     try {
       const data = await fetchGSCReport(
         siteUrl,

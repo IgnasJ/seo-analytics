@@ -18,6 +18,13 @@ export function getDb(): Database {
     }
     db = new Database(path, { create: true })
     db.run("PRAGMA journal_mode=WAL")
+    // With WAL, NORMAL only fsyncs at checkpoints instead of on every commit.
+    // The database stays consistent after a crash; at worst the last few
+    // commits (re-fetchable cache rows) are lost on power failure.
+    db.run("PRAGMA synchronous=NORMAL")
+    // Wait briefly instead of failing with SQLITE_BUSY if another process
+    // (a second app instance, a backup tool) holds the write lock.
+    db.run("PRAGMA busy_timeout=5000")
     db.run("PRAGMA foreign_keys=ON")
     db.exec(SCHEMA_SQL)
     runMigrations(db)
