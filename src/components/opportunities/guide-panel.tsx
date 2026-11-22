@@ -96,20 +96,36 @@ export function GuidePanel({ domainId, url, query }: Props) {
 
   useEffect(() => { loadGuide() }, [loadGuide])
 
+  // Abort an in-flight generation when the panel unmounts (keyword switch,
+  // navigation). The server sees the dropped connection and stops the CLI.
+  useEffect(() => () => abortRef.current?.abort(), [])
+
   async function generate() {
     setStreaming(true)
     setStreamText("")
     setStreamError(null)
-    abortRef.current = new AbortController()
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
     try {
       const res = await fetch("/api/guides", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domainId, url, query }),
-        signal: abortRef.current.signal,
+        signal: controller.signal,
       })
-      if (!res.body) return
+      // Validation / configuration failures come back as plain JSON, not as an
+      // event stream — without this check they vanished without a trace.
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setStreamError(body.error ?? `Request failed (${res.status})`)
+        return
+      }
+      if (!res.body) {
+        setStreamError("No response body")
+        return
+      }
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -137,8 +153,13 @@ export function GuidePanel({ domainId, url, query }: Props) {
           } catch { /* skip */ }
         }
       }
+    } catch (err) {
+      // An abort is our own doing (unmount / restart) — not an error to show.
+      if (!controller.signal.aborted) {
+        setStreamError(err instanceof Error ? err.message : "Network error")
+      }
     } finally {
-      setStreaming(false)
+      if (!controller.signal.aborted) setStreaming(false)
     }
   }
 

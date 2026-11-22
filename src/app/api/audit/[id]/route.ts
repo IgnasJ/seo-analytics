@@ -33,7 +33,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  const auditId = Number(id)
+  if (isNaN(auditId)) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 })
+  }
   const db = getDb()
-  deleteAudit(db, Number(id))
+  deleteAudit(db, auditId)
   return new NextResponse(null, { status: 204 })
 }

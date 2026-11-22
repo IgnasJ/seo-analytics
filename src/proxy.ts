@@ -45,8 +45,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run on every path except Next.js internals and static asset routes. The
-  // matcher itself can't read env, so the proxy's first line short-circuits
-  // when auth is disabled.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|ico|css|js|map)$).*)"],
+  // Run on every path except Next.js internals and the favicon. The matcher
+  // itself can't read env, so the proxy's first line short-circuits when auth
+  // is disabled.
+  //
+  // There is deliberately no "skip anything ending in .js/.png/…" clause: the
+  // app serves no public/ assets, and such a clause also exempted dynamic
+  // routes whose last segment merely *looks* like a file — e.g.
+  // /api/audit/5.js or /domain/5.png reached their handlers unauthenticated.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 }

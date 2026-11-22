@@ -8,6 +8,7 @@ import type {
   PageRow,
 } from "@/types/analytics"
 import { recordApiCall } from "@/lib/db/queries/api-usage"
+import { GOOGLE_REQUEST_OPTIONS } from "./request-options"
 
 export async function fetchGA4Report(
   propertyId: string,
@@ -45,7 +46,7 @@ export async function fetchGA4Report(
         orderBys: [{ dimension: { dimensionName: "date" } }],
         metricAggregations: ["TOTAL"],
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
     analyticsdata.properties.runReport({
       property: propertyId,
       requestBody: {
@@ -54,7 +55,7 @@ export async function fetchGA4Report(
         metrics: [{ name: "sessions" }],
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
     analyticsdata.properties.runReport({
       property: propertyId,
       requestBody: {
@@ -67,7 +68,7 @@ export async function fetchGA4Report(
         // your long-tail pages — useful for SEO content audits.
         limit: "200",
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
     analyticsdata.properties.runReport({
       property: propertyId,
       requestBody: {
@@ -77,7 +78,7 @@ export async function fetchGA4Report(
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
         limit: "25",
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
     analyticsdata.properties.runReport({
       property: propertyId,
       requestBody: {
@@ -86,14 +87,10 @@ export async function fetchGA4Report(
         metrics: [{ name: "sessions" }, { name: "totalUsers" }],
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
       },
-    }),
+    }, GOOGLE_REQUEST_OPTIONS),
   ])
 
-  recordApiCall("ga4")
-  recordApiCall("ga4")
-  recordApiCall("ga4")
-  recordApiCall("ga4")
-  recordApiCall("ga4")
+  recordApiCall("ga4", undefined, 5)
 
   // Overview metrics come from the TOTAL row of the daily query. Because the
   // request specifies a date dimension, GA4 always populates totals[0] when

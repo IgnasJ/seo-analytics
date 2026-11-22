@@ -65,20 +65,34 @@ export function IssueFixGuide({ domainId }: { domainId: number }) {
 
   const phase = useMemo(() => streamPhase(streamText), [streamText])
 
+  // Abort an in-flight generation when the component unmounts so the server
+  // can stop the CLI instead of finishing a plan nobody will see.
+  useEffect(() => () => abortRef.current?.abort(), [])
+
   async function generate() {
     setStreaming(true)
     setStreamText("")
     setMarkdown(null)
     setError(null)
-    abortRef.current = new AbortController()
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
     try {
       const res = await fetch("/api/issues-guide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domainId }),
-        signal: abortRef.current.signal,
+        signal: controller.signal,
       })
+      // Errors such as "no issues data — sync this domain first" arrive as
+      // plain JSON, not as an event stream; surface them instead of silently
+      // returning to the idle button.
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error ?? `Request failed (${res.status})`)
+        return
+      }
       if (!res.body) { setError("No response body"); return }
 
       const reader = res.body.getReader()
@@ -104,9 +118,11 @@ export function IssueFixGuide({ domainId }: { domainId: number }) {
         }
       }
     } catch (err) {
-      if (err instanceof Error && err.name !== "AbortError") setError(err.message)
+      if (!controller.signal.aborted) {
+        setError(err instanceof Error ? err.message : "Network error")
+      }
     } finally {
-      setStreaming(false)
+      if (!controller.signal.aborted) setStreaming(false)
     }
   }
 

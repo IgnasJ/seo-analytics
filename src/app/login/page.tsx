@@ -5,11 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Globe, LogIn } from "lucide-react"
+import { safeNextPath } from "@/lib/safe-redirect"
 
 function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
-  const next = params.get("next") || "/"
+  const next = safeNextPath(params.get("next"))
 
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")

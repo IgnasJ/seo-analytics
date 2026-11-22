@@ -71,12 +71,26 @@ export function AiRunnerCard() {
 
   async function save() {
     setSaving(true)
-    await fetch("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    })
-    setSaving(false)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      })
+      if (!res.ok) {
+        // The server validates these values (allowed CLI, http(s) runner URL,
+        // model id shape); show why a save was refused instead of pretending
+        // it went through.
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        setPingStatus("error")
+        setPingMessage(`Not saved: ${body.error ?? `request failed (${res.status})`}`)
+      }
+    } catch (err) {
+      setPingStatus("error")
+      setPingMessage(`Not saved: ${err instanceof Error ? err.message : "network error"}`)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

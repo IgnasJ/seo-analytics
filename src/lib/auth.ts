@@ -35,15 +35,33 @@ function getSigningSecret(): string {
   return key
 }
 
+// The proxy verifies a session on every request. Importing the HMAC key is the
+// expensive half of that, so keep the imported key around and only redo it if
+// the secret itself changes (tests, or a rotated env var after a restart).
+let cachedKey: { secret: string; key: Promise<CryptoKey> } | null = null
+
+function getSigningKey(): Promise<CryptoKey> {
+  const secret = getSigningSecret()
+  if (cachedKey?.secret !== secret) {
+    const key = crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    )
+    // Don't keep a rejected import around.
+    key.catch(() => {
+      if (cachedKey?.key === key) cachedKey = null
+    })
+    cachedKey = { secret, key }
+  }
+  return cachedKey.key
+}
+
 async function hmacSign(data: string): Promise<string> {
   const enc = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(getSigningSecret()),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  )
+  const key = await getSigningKey()
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data))
   return base64UrlEncode(new Uint8Array(sig))
 }

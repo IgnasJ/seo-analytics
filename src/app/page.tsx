@@ -2,11 +2,10 @@ import { getDb } from "@/lib/db"
 import { listDomains } from "@/lib/db/queries/domains"
 import { listCategories } from "@/lib/db/queries/categories"
 import {
-  getAnalyticsCache,
-  getGscCache,
+  getAnalyticsSummary,
+  getGscSummary,
   getIssuesCache,
-  getLastSyncedAt,
-  getLastSyncStatus,
+  getLatestSync,
 } from "@/lib/db/queries/cache"
 import { DomainCard } from "@/components/dashboard/domain-card"
 import { Button } from "@/components/ui/button"
@@ -28,6 +27,11 @@ import type { AnalyticsReport } from "@/types/analytics"
 import type { GscReport, IssuesReport } from "@/types/search-console"
 
 export const dynamic = "force-dynamic"
+
+type AnalyticsSummary = Pick<AnalyticsReport, "overview"> & {
+  daily?: AnalyticsReport["daily"]
+}
+type GscSummary = Partial<Pick<GscReport, "overview" | "daily">>
 
 interface DashboardCard {
   id: number
@@ -74,13 +78,16 @@ export default async function DashboardPage({ searchParams }: PageProps) {
   const categories = listCategories(db)
 
   const allCards: DashboardCard[] = domains.map((domain) => {
-    const analytics1m = getAnalyticsCache(db, domain.id, "1m") as AnalyticsReport | null
-    const gsc1m = getGscCache(db, domain.id, "1m") as GscReport | null
-    const gsc7d = getGscCache(db, domain.id, "7d") as GscReport | null
-    const analytics7d = getAnalyticsCache(db, domain.id, "7d") as AnalyticsReport | null
+    // Summary readers return only overview + daily series: the cards never
+    // touch the query / page tables, so there is no reason to JSON.parse them.
+    const analytics1m = getAnalyticsSummary(db, domain.id, "1m") as AnalyticsSummary | null
+    const gsc1m = getGscSummary(db, domain.id, "1m") as GscSummary | null
+    const gsc7d = getGscSummary(db, domain.id, "7d") as GscSummary | null
+    const analytics7d = getAnalyticsSummary(db, domain.id, "7d") as AnalyticsSummary | null
     const issues = getIssuesCache(db, domain.id) as IssuesReport | null
-    const lastSyncedAt = getLastSyncedAt(db, domain.id)
-    const lastSyncStatus = getLastSyncStatus(db, domain.id)
+    const latestSync = getLatestSync(db, domain.id)
+    const lastSyncedAt = latestSync?.syncedAt ?? null
+    const lastSyncStatus = latestSync?.status ?? null
 
     const issueCount =
       (issues?.sitemaps.reduce((s, sm) => s + sm.errors, 0) ?? 0) +
@@ -103,16 +110,16 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       id: domain.id,
       hostname: domain.hostname,
       category_id: domain.category_id,
-      sessions: analytics1m?.overview.sessions ?? null,
-      clicks: gsc1m?.overview.totalClicks ?? null,
-      position1m: gsc1m?.overview.avgPosition ?? null,
-      position7d: gsc7d?.overview.avgPosition ?? null,
+      sessions: analytics1m?.overview?.sessions ?? null,
+      clicks: gsc1m?.overview?.totalClicks ?? null,
+      position1m: gsc1m?.overview?.avgPosition ?? null,
+      position7d: gsc7d?.overview?.avgPosition ?? null,
       dailySessions: (analytics1m?.daily ?? []).map((d) => d.sessions),
       dailyClicks: (gsc1m?.daily ?? []).map((d) => d.clicks),
-      sessions7d: analytics7d?.overview.sessions ?? 0,
-      clicks7d: gsc7d?.overview.totalClicks ?? 0,
-      impressions1m: gsc1m?.overview.totalImpressions ?? 0,
-      impressions7d: gsc7d?.overview.totalImpressions ?? 0,
+      sessions7d: analytics7d?.overview?.sessions ?? 0,
+      clicks7d: gsc7d?.overview?.totalClicks ?? 0,
+      impressions1m: gsc1m?.overview?.totalImpressions ?? 0,
+      impressions7d: gsc7d?.overview?.totalImpressions ?? 0,
       ga4Linked,
       gscLinked,
       lastSyncedAt,

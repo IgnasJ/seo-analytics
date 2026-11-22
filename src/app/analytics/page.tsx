@@ -3,10 +3,9 @@ import { getDb } from "@/lib/db"
 import { listDomains } from "@/lib/db/queries/domains"
 import { listCategories } from "@/lib/db/queries/categories"
 import {
-  getAnalyticsCache,
-  getGscCache,
-  getLastSyncedAt,
-  getLastSyncStatus,
+  getAnalyticsSummary,
+  getGscSummary,
+  getLatestSync,
 } from "@/lib/db/queries/cache"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -58,24 +57,41 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   // range — the 1m range powers the leaderboard's headline numbers (it's
   // what the dashboard shows so the two pages agree); the selected range
   // powers the trend charts (date span the user explicitly picked).
+  //
+  // Summary readers skip the query / page tables (this page never renders
+  // them), and when the selected range *is* 1m we reuse the same objects
+  // instead of reading and parsing each cache row twice.
+  type AnalyticsSummary = Partial<Omit<AnalyticsReport, "topPages">>
+  type GscSummary = Partial<Pick<GscReport, "overview" | "daily">>
   type Loaded = {
     domain: (typeof allDomains)[number]
-    selectedAnalytics: AnalyticsReport | null
-    selectedGsc: GscReport | null
-    headlineAnalytics: AnalyticsReport | null
-    headlineGsc: GscReport | null
+    selectedAnalytics: AnalyticsSummary | null
+    selectedGsc: GscSummary | null
+    headlineAnalytics: AnalyticsSummary | null
+    headlineGsc: GscSummary | null
     lastSyncedAt: number | null
     lastSyncStatus: "success" | "error" | null
   }
-  const loaded: Loaded[] = allDomains.map((d) => ({
-    domain: d,
-    selectedAnalytics: getAnalyticsCache(db, d.id, range) as AnalyticsReport | null,
-    selectedGsc: getGscCache(db, d.id, range) as GscReport | null,
-    headlineAnalytics: getAnalyticsCache(db, d.id, "1m") as AnalyticsReport | null,
-    headlineGsc: getGscCache(db, d.id, "1m") as GscReport | null,
-    lastSyncedAt: getLastSyncedAt(db, d.id),
-    lastSyncStatus: getLastSyncStatus(db, d.id),
-  }))
+  const loaded: Loaded[] = allDomains.map((d) => {
+    const headlineAnalytics = getAnalyticsSummary(db, d.id, "1m") as AnalyticsSummary | null
+    const headlineGsc = getGscSummary(db, d.id, "1m") as GscSummary | null
+    const latestSync = getLatestSync(db, d.id)
+    return {
+      domain: d,
+      selectedAnalytics:
+        range === "1m"
+          ? headlineAnalytics
+          : (getAnalyticsSummary(db, d.id, range) as AnalyticsSummary | null),
+      selectedGsc:
+        range === "1m"
+          ? headlineGsc
+          : (getGscSummary(db, d.id, range) as GscSummary | null),
+      headlineAnalytics,
+      headlineGsc,
+      lastSyncedAt: latestSync?.syncedAt ?? null,
+      lastSyncStatus: latestSync?.status ?? null,
+    }
+  })
 
   // Severity per domain, used both for the leaderboard's status column and
   // for the optional issues-only filter.
@@ -168,11 +184,11 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     domainId: r.domain.id,
     hostname: r.domain.hostname,
     categoryName: categoryName(r.domain.category_id),
-    sessions: r.headlineAnalytics?.overview.sessions ?? 0,
-    bounceRate: r.headlineAnalytics?.overview.bounceRate ?? 0,
-    clicks: r.headlineGsc?.overview.totalClicks ?? 0,
-    ctr: r.headlineGsc?.overview.avgCtr ?? 0,
-    position: r.headlineGsc?.overview.avgPosition ?? null,
+    sessions: r.headlineAnalytics?.overview?.sessions ?? 0,
+    bounceRate: r.headlineAnalytics?.overview?.bounceRate ?? 0,
+    clicks: r.headlineGsc?.overview?.totalClicks ?? 0,
+    ctr: r.headlineGsc?.overview?.avgCtr ?? 0,
+    position: r.headlineGsc?.overview?.avgPosition ?? null,
     severity: r.severity,
     reasons: r.reasons,
   }))

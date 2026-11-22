@@ -212,20 +212,36 @@ function AuditPageInner() {
     }
   }
 
-  async function toggleExpand(audit: Audit) {
-    if (expanded === audit.id) {
-      setExpanded(null)
-      return
-    }
-    setExpanded(audit.id)
-    if (audit.status === "done" && !details[audit.id]) {
-      const res = await fetch(`/api/audit/${audit.id}`)
-      if (res.ok) {
-        const body = (await res.json()) as DetailResponse
-        setDetails((d) => ({ ...d, [audit.id]: body }))
-      }
-    }
+  function toggleExpand(audit: Audit) {
+    setExpanded((current) => (current === audit.id ? null : audit.id))
   }
+
+  // List rows are slim (scores only — see SLIM_AUDIT_COLUMNS on the server),
+  // so the full Lighthouse result for the expanded row is fetched on demand.
+  // Driven by an effect rather than the click handler so a row that was
+  // expanded while still running picks up its result once the poll sees it
+  // finish.
+  const expandedIsDone =
+    expanded !== null &&
+    data?.view === "flat" &&
+    data.rows.some((r) => r.id === expanded && r.status === "done")
+  const hasExpandedDetail = expanded !== null && Boolean(details[expanded])
+  useEffect(() => {
+    if (expanded === null || !expandedIsDone || hasExpandedDetail) return
+    let cancelled = false
+    const id = expanded
+    fetch(`/api/audit/${id}`)
+      .then((res) => (res.ok ? (res.json() as Promise<DetailResponse>) : null))
+      .then((body) => {
+        if (!cancelled && body) setDetails((d) => ({ ...d, [id]: body }))
+      })
+      .catch(() => {
+        /* transient — re-expanding the row retries */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [expanded, expandedIsDone, hasExpandedDetail])
 
   async function deleteAudit(id: number) {
     if (!confirm("Delete this audit?")) return
@@ -659,6 +675,14 @@ function StrategyChip({ strategy }: { strategy: AuditStrategy }) {
   )
 }
 
+function safeParseResult(json: string): AuditResult | null {
+  try {
+    return JSON.parse(json) as AuditResult
+  } catch {
+    return null
+  }
+}
+
 function AuditRow({
   audit,
   expanded,
@@ -675,14 +699,23 @@ function AuditRow({
   onRetry: () => void
 }) {
   const ts = formatDateTime(audit.requested_at)
+  // `audit` is a slim list row: its result_json carries the scores for the
+  // pills only. The full result (entries, CWV) comes from `detail`, loaded
+  // when the row is expanded.
   const result =
     audit.result_json && audit.status === "done"
       ? (JSON.parse(audit.result_json) as AuditResult)
       : null
-  const priorResult =
-    detail?.prior?.result_json
-      ? (JSON.parse(detail.prior.result_json) as AuditResult)
-      : undefined
+  const fullJson = detail?.audit.result_json ?? null
+  const priorJson = detail?.prior?.result_json ?? null
+  const fullResult = useMemo(
+    () => (fullJson ? safeParseResult(fullJson) : null),
+    [fullJson]
+  )
+  const priorResult = useMemo(
+    () => (priorJson ? (safeParseResult(priorJson) ?? undefined) : undefined),
+    [priorJson]
+  )
 
   return (
     <li className="border rounded-md">
@@ -761,10 +794,16 @@ function AuditRow({
               15–30 seconds.
             </div>
           )}
-          {result && (
+          {audit.status === "done" && !fullResult && (
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Loading audit details…
+            </div>
+          )}
+          {fullResult && (
             <>
-              <LighthouseGauges current={result} prior={priorResult} />
-              <AuditDetail current={result} prior={priorResult} />
+              <LighthouseGauges current={fullResult} prior={priorResult} />
+              <AuditDetail current={fullResult} prior={priorResult} />
               {detail?.prior && (
                 <p className="text-xs text-muted-foreground">
                   Diff baseline: {formatDateTime(detail.prior.requested_at)}
@@ -776,7 +815,7 @@ function AuditRow({
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                Final URL: <Badge variant="outline">{result.finalUrl}</Badge>
+                Final URL: <Badge variant="outline">{fullResult.finalUrl}</Badge>
               </p>
             </>
           )}

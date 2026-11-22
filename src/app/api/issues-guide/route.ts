@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db"
 import { getDomain } from "@/lib/db/queries/domains"
 import { getIssuesCache } from "@/lib/db/queries/cache"
 import { getRunner } from "@/lib/ai-runner"
+import { sseResponse } from "@/lib/ai-runner/sse"
 import { getSetting } from "@/lib/db/queries/settings"
 import type { IssuesReport } from "@/types/search-console"
 
@@ -53,8 +54,11 @@ function buildPrompt(hostname: string, issues: IssuesReport): string {
 }
 
 export async function POST(req: NextRequest) {
-  const { domainId } = await req.json() as { domainId: number }
-  if (!domainId) return NextResponse.json({ error: "domainId required" }, { status: 400 })
+  const body = (await req.json().catch(() => null)) as { domainId?: unknown } | null
+  const domainId = Number(body?.domainId)
+  if (!Number.isInteger(domainId) || domainId <= 0) {
+    return NextResponse.json({ error: "domainId required" }, { status: 400 })
+  }
 
   const db = getDb()
   const domain = getDomain(db, domainId)
@@ -66,46 +70,33 @@ export async function POST(req: NextRequest) {
   const prompt = buildPrompt(domain.hostname, issues)
   const model = getSetting(db, "ai_model") || process.env.AI_MODEL || undefined
 
-  const runner = getRunner({
-    mode: getSetting(db, "ai_runner") ?? undefined,
-    url: getSetting(db, "ai_runner_url") ?? undefined,
-    cli: getSetting(db, "ai_cli") ?? undefined,
-  })
+  let runner
+  try {
+    runner = getRunner({
+      mode: getSetting(db, "ai_runner") ?? undefined,
+      url: getSetting(db, "ai_runner_url") ?? undefined,
+      cli: getSetting(db, "ai_cli") ?? undefined,
+    })
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "AI runner misconfigured" },
+      { status: 400 }
+    )
+  }
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      const enc = new TextEncoder()
-      function send(obj: unknown) {
-        controller.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`))
+  return sseResponse(req.signal, async (send, signal) => {
+    let markdown = ""
+    for await (const event of runner.stream(prompt, SYSTEM_PROMPT, model, signal)) {
+      if (event.type === "chunk") {
+        markdown += event.text
+        send({ type: "chunk", text: event.text })
+      } else if (event.type === "error") {
+        send({ type: "error", message: event.message })
+        return
+      } else if (event.type === "done") {
+        send({ type: "done", markdown })
+        return
       }
-      try {
-        let markdown = ""
-        for await (const event of runner.stream(prompt, SYSTEM_PROMPT, model)) {
-          if (event.type === "chunk") {
-            markdown += event.text
-            send({ type: "chunk", text: event.text })
-          } else if (event.type === "error") {
-            send({ type: "error", message: event.message })
-            controller.close()
-            return
-          } else if (event.type === "done") {
-            send({ type: "done", markdown })
-            controller.close()
-            return
-          }
-        }
-      } catch (err) {
-        send({ type: "error", message: err instanceof Error ? err.message : "unknown error" })
-        controller.close()
-      }
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-    },
+    }
   })
 }
